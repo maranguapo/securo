@@ -39,6 +39,7 @@ from app.schemas.workspace import (
 from app.agents.config import get_agent_settings
 from app.services import (
     ai_categorization_service,
+    digest_service,
     integration_service,
     module_service,
     telegram_service,
@@ -366,6 +367,20 @@ async def delete_telegram_chat(
     await telegram_service.delete_link(session, link)
 
 
+def _automation_read(row, agents_enabled: bool) -> AutomationSettingsRead:
+    if row is None:
+        return AutomationSettingsRead(agents_enabled=agents_enabled)
+    return AutomationSettingsRead(
+        ai_categorization_enabled=row.ai_categorization_enabled,
+        llm_connection_id=row.llm_connection_id,
+        llm_model=row.llm_model,
+        min_confidence=row.min_confidence,
+        digest_enabled=row.digest_enabled,
+        digest_time=row.digest_time.strftime("%H:%M"),
+        agents_enabled=agents_enabled,
+    )
+
+
 @router.get("/{workspace_id}/automation", response_model=AutomationSettingsRead)
 async def get_automation_settings(
     workspace_id: uuid.UUID,
@@ -374,16 +389,7 @@ async def get_automation_settings(
 ):
     await workspace_service.require_membership(session, workspace_id, user.id)
     row = await ai_categorization_service.get_settings(session, workspace_id)
-    agents_enabled = get_agent_settings().enabled
-    if row is None:
-        return AutomationSettingsRead(agents_enabled=agents_enabled)
-    return AutomationSettingsRead(
-        ai_categorization_enabled=row.ai_categorization_enabled,
-        llm_connection_id=row.llm_connection_id,
-        llm_model=row.llm_model,
-        min_confidence=row.min_confidence,
-        agents_enabled=agents_enabled,
-    )
+    return _automation_read(row, get_agent_settings().enabled)
 
 
 @router.put("/{workspace_id}/automation", response_model=AutomationSettingsRead)
@@ -411,16 +417,12 @@ async def save_automation_settings(
             llm_connection_id=body.llm_connection_id,
             llm_model=body.llm_model,
             min_confidence=body.min_confidence,
+            digest_enabled=body.digest_enabled,
+            digest_time=digest_service.parse_time(body.digest_time),
         )
     except ai_categorization_service.InvalidAutomationSettings as exc:
         raise HTTPException(status_code=400, detail=str(exc))
-    return AutomationSettingsRead(
-        ai_categorization_enabled=row.ai_categorization_enabled,
-        llm_connection_id=row.llm_connection_id,
-        llm_model=row.llm_model,
-        min_confidence=row.min_confidence,
-        agents_enabled=agents_enabled,
-    )
+    return _automation_read(row, agents_enabled)
 
 
 @router.post("/{workspace_id}/automation/run-now", response_model=AutomationRunResult)
@@ -439,7 +441,13 @@ async def run_automation_now(
             detail="AI categorization needs the agents module (AGENTS_ENABLED=true).",
         )
     count = await ai_categorization_service.categorize_pending(session, workspace_id)
-    return AutomationRunResult(categorized=count)
+    sent = 0
+    settings = await ai_categorization_service.get_settings(session, workspace_id)
+    if settings is not None and settings.digest_enabled:
+        # A manual run sends what is pending without using up the day's
+        # scheduled digest: that one still goes out, with whatever is new.
+        sent = await digest_service.send_digest(session, workspace_id)
+    return AutomationRunResult(categorized=count, digest_sent=sent)
 
 
 @router.get("/{workspace_id}/members", response_model=list[MemberRead])

@@ -410,6 +410,8 @@ async def test_defaults_are_off(client: AsyncClient, auth_headers, test_workspac
         "llm_connection_id": None,
         "llm_model": None,
         "min_confidence": 0.6,
+        "digest_enabled": False,
+        "digest_time": "20:00",
         "agents_enabled": True,
     }
 
@@ -553,4 +555,4 @@ async def test_run_now_categorizes_immediately(
         )
 
     assert resp.status_code == 200, resp.text
-    assert resp.json() == {"categorized": 1}
+    assert resp.json() == {"categorized": 1, "digest_sent": 0}

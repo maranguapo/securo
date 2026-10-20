@@ -118,6 +118,9 @@ class AutomationSettingsRead(BaseModel):
     llm_connection_id: Optional[uuid.UUID] = None
     llm_model: Optional[str] = None
     min_confidence: float = 0.6
+    digest_enabled: bool = False
+    # Wall-clock "HH:MM" in the workspace's own timezone.
+    digest_time: str = "20:00"
     # False when the server runs without the agents module: the LLM
     # connections live there, so the feature cannot be turned on.
     agents_enabled: bool = True
@@ -128,10 +131,14 @@ class AutomationSettingsUpdate(BaseModel):
     llm_connection_id: Optional[uuid.UUID] = None
     llm_model: Optional[str] = Field(default=None, max_length=120)
     min_confidence: float = Field(default=0.6, ge=0.3, le=1.0)
+    digest_enabled: bool = False
+    digest_time: str = Field(default="20:00", pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
 
 
 class AutomationRunResult(BaseModel):
     categorized: int
+    # Transactions put in front of the user in a digest sent just now.
+    digest_sent: int = 0
 
 
 class TelegramTokenUpdate(BaseModel):

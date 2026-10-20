@@ -13,7 +13,7 @@ here, so it cannot invent an id.
 import json
 import logging
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, time, timedelta, timezone
 from typing import Optional
 
 from sqlalchemy import exists, select, update
@@ -87,6 +87,8 @@ async def save_settings(
     llm_connection_id: Optional[uuid.UUID],
     llm_model: Optional[str],
     min_confidence: float,
+    digest_enabled: bool = False,
+    digest_time: Optional[time] = None,
 ) -> WorkspaceAiSettings:
     """Create or update the workspace's AI settings.
 
@@ -108,10 +110,22 @@ async def save_settings(
         if not effective_model:
             raise InvalidAutomationSettings("Choose a model to turn this on")
 
+    if digest_enabled and not enabled:
+        # The digest is the review of what the model did; without it there is
+        # nothing to send.
+        raise InvalidAutomationSettings("Turn on AI categorization to get a daily summary")
+
     row = await session.get(WorkspaceAiSettings, workspace_id)
     if row is None:
         row = WorkspaceAiSettings(workspace_id=workspace_id)
         session.add(row)
+    if digest_enabled and not row.digest_enabled:
+        # Starting (or restarting) the summary: begin from tomorrow's clean
+        # slate rather than whatever date a previous run left behind.
+        row.last_digest_on = None
+    row.digest_enabled = digest_enabled
+    if digest_time is not None:
+        row.digest_time = digest_time
     row.ai_categorization_enabled = enabled
     row.llm_connection_id = llm_connection_id
     row.llm_model = model

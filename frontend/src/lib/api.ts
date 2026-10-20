@@ -245,7 +245,7 @@ export const workspaces = {
     const { data } = await api.put(`/workspaces/${id}/automation`, payload)
     return data
   },
-  runAutomation: async (id: string): Promise<{ categorized: number }> => {
+  runAutomation: async (id: string): Promise<{ categorized: number; digest_sent: number }> => {
     const { data } = await api.post(`/workspaces/${id}/automation/run-now`)
     return data
   },

@@ -76,6 +76,9 @@ export interface AutomationSettings {
   llm_connection_id: string | null
   llm_model: string | null
   min_confidence: number
+  digest_enabled: boolean
+  // Wall-clock "HH:MM" in the workspace's own timezone.
+  digest_time: string
   // False when the server runs without the agents module, which owns the LLM
   // connections the feature needs.
   agents_enabled: boolean

@@ -9,6 +9,7 @@ const api = vi.hoisted(() => ({
   saveAutomation: vi.fn(),
   runAutomation: vi.fn(),
   listConnections: vi.fn(),
+  getTelegramIntegration: vi.fn(),
 }))
 
 vi.mock('@/lib/api', () => ({
@@ -16,6 +17,7 @@ vi.mock('@/lib/api', () => ({
     getAutomation: api.getAutomation,
     saveAutomation: api.saveAutomation,
     runAutomation: api.runAutomation,
+    getTelegramIntegration: api.getTelegramIntegration,
   },
   agents: { connections: { list: api.listConnections } },
 }))
@@ -26,6 +28,8 @@ const OFF = {
   llm_connection_id: null,
   llm_model: null,
   min_confidence: 0.6,
+  digest_enabled: false,
+  digest_time: '20:00',
   agents_enabled: true,
 }
 const ON = { ...OFF, ai_categorization_enabled: true, llm_connection_id: 'c1', llm_model: 'llama3' }
@@ -38,6 +42,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   api.getAutomation.mockResolvedValue(OFF)
   api.listConnections.mockResolvedValue(CONNECTIONS)
+  api.getTelegramIntegration.mockResolvedValue({ configured: true, client_id: 'bot' })
 })
 
 describe('WorkspaceAutomation', () => {
@@ -64,7 +69,7 @@ describe('WorkspaceAutomation', () => {
     const { user } = renderWithProviders(<WorkspaceAutomation workspaceId="ws-1" canManage />)
     await screen.findByText('Off')
 
-    await user.click(screen.getByRole('switch'))
+    await user.click(screen.getByRole('switch', { name: 'Categorize with AI' }))
     const save = screen.getByRole('button', { name: 'Save' })
     expect(save).toBeDisabled()
 
@@ -81,7 +86,7 @@ describe('WorkspaceAutomation', () => {
     await screen.findByText('Off')
     await screen.findByRole('option', { name: 'Local (ollama)' })
 
-    await user.click(screen.getByRole('switch'))
+    await user.click(screen.getByRole('switch', { name: 'Categorize with AI' }))
     await user.selectOptions(screen.getByLabelText('LLM connection'), 'c1')
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
@@ -91,8 +96,47 @@ describe('WorkspaceAutomation', () => {
         llm_connection_id: 'c1',
         llm_model: null,
         min_confidence: 0.6,
+        digest_enabled: false,
+        digest_time: '20:00',
       }),
     )
+  })
+
+  it('keeps the daily summary off until AI categorization is on', async () => {
+    renderWithProviders(<WorkspaceAutomation workspaceId="ws-1" canManage />)
+    await screen.findByText('Off')
+
+    expect(screen.getByRole('switch', { name: /daily summary/i })).toBeDisabled()
+  })
+
+  it('saves the summary time the user picks', async () => {
+    api.getAutomation.mockResolvedValue(ON)
+    api.saveAutomation.mockResolvedValue({ ...ON, digest_enabled: true, digest_time: '07:30' })
+    const { user } = renderWithProviders(<WorkspaceAutomation workspaceId="ws-1" canManage />)
+    await screen.findByText('On')
+
+    await user.click(screen.getByRole('switch', { name: /daily summary/i }))
+    const time = screen.getByLabelText('Send at')
+    await user.clear(time)
+    await user.type(time, '07:30')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() =>
+      expect(api.saveAutomation).toHaveBeenCalledWith(
+        'ws-1',
+        expect.objectContaining({ digest_enabled: true, digest_time: '07:30' }),
+      ),
+    )
+  })
+
+  it('warns that the summary has nowhere to go without a Telegram bot', async () => {
+    api.getAutomation.mockResolvedValue({ ...ON, digest_enabled: true })
+    api.getTelegramIntegration.mockResolvedValue({ configured: false, client_id: null })
+    renderWithProviders(<WorkspaceAutomation workspaceId="ws-1" canManage />)
+
+    expect(
+      await screen.findByText(/Connect a Telegram bot and your chat under Integrations/),
+    ).toBeInTheDocument()
   })
 
   it('only offers "Run now" once it is saved as on, and reports the result', async () => {

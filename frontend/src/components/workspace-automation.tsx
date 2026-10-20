@@ -19,6 +19,7 @@ interface WorkspaceAutomationProps {
 }
 
 const DEFAULT_CONFIDENCE_PERCENT = 60
+const DEFAULT_DIGEST_TIME = '20:00'
 
 /**
  * Lets a workspace have an LLM fill in the categories nothing else did.
@@ -37,6 +38,8 @@ export function WorkspaceAutomation({ workspaceId, canManage }: WorkspaceAutomat
   const [connectionId, setConnectionId] = useState('')
   const [model, setModel] = useState('')
   const [confidence, setConfidence] = useState(DEFAULT_CONFIDENCE_PERCENT)
+  const [digestEnabled, setDigestEnabled] = useState(false)
+  const [digestTime, setDigestTime] = useState(DEFAULT_DIGEST_TIME)
 
   const { data: settings, isLoading } = useQuery({
     queryKey,
@@ -52,6 +55,13 @@ export function WorkspaceAutomation({ workspaceId, canManage }: WorkspaceAutomat
     enabled: canManage && !!settings && settings.agents_enabled,
   })
 
+  // Whether a Telegram bot exists: without one the summary has nowhere to go.
+  const { data: telegram } = useQuery({
+    queryKey: ['workspace-integration', 'telegram', workspaceId],
+    queryFn: () => workspacesApi.getTelegramIntegration(workspaceId),
+    enabled: !!settings && settings.agents_enabled,
+  })
+
   // Seed the form from the saved settings, and again when they change.
   const [seededFor, setSeededFor] = useState<string | null>(null)
   const seedKey = settings ? `${workspaceId}:${JSON.stringify(settings)}` : null
@@ -61,6 +71,8 @@ export function WorkspaceAutomation({ workspaceId, canManage }: WorkspaceAutomat
     setConnectionId(settings.llm_connection_id ?? '')
     setModel(settings.llm_model ?? '')
     setConfidence(Math.round(settings.min_confidence * 100))
+    setDigestEnabled(settings.digest_enabled)
+    setDigestTime(settings.digest_time || DEFAULT_DIGEST_TIME)
   }
 
   const selected = connections.find((c) => c.id === connectionId)
@@ -72,6 +84,8 @@ export function WorkspaceAutomation({ workspaceId, canManage }: WorkspaceAutomat
         llm_connection_id: connectionId || null,
         llm_model: model.trim() || null,
         min_confidence: confidence / 100,
+        digest_enabled: enabled && digestEnabled,
+        digest_time: digestTime || DEFAULT_DIGEST_TIME,
       }),
     onSuccess: () => {
       toast.success(t('workspace.automationSaved'))
@@ -82,8 +96,9 @@ export function WorkspaceAutomation({ workspaceId, canManage }: WorkspaceAutomat
 
   const runMutation = useMutation({
     mutationFn: () => workspacesApi.runAutomation(workspaceId),
-    onSuccess: ({ categorized }) => {
+    onSuccess: ({ categorized, digest_sent }) => {
       toast.success(t('workspace.automationRunDone', { count: categorized }))
+      if (digest_sent > 0) toast.success(t('workspace.automationDigestSent', { count: digest_sent }))
       void queryClient.invalidateQueries({ queryKey: ['transactions'] })
     },
     onError: (e: unknown) => toast.error(extractApiError(e, t('workspace.automationRunError'))),
@@ -181,6 +196,36 @@ export function WorkspaceAutomation({ workspaceId, canManage }: WorkspaceAutomat
               </div>
               <p className="text-xs text-muted-foreground">{t('workspace.aiMinConfidenceHint')}</p>
             </div>
+          </div>
+
+          <div className="space-y-3 rounded-lg border p-4">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <Label htmlFor="ai-digest-enabled">{t('workspace.aiDigestLabel')}</Label>
+                <p className="text-xs text-muted-foreground mt-0.5">{t('workspace.aiDigestHint')}</p>
+              </div>
+              <Switch
+                id="ai-digest-enabled"
+                checked={enabled && digestEnabled}
+                onCheckedChange={setDigestEnabled}
+                disabled={!enabled}
+              />
+            </div>
+            {enabled && digestEnabled && (
+              <div className="flex items-center gap-3">
+                <Label htmlFor="ai-digest-time">{t('workspace.aiDigestTime')}</Label>
+                <Input
+                  id="ai-digest-time"
+                  type="time"
+                  value={digestTime}
+                  onChange={(e) => setDigestTime(e.target.value)}
+                  className="w-28"
+                />
+              </div>
+            )}
+            {enabled && digestEnabled && telegram && !telegram.configured && (
+              <p className="text-xs text-amber-600">{t('workspace.aiDigestNeedsTelegram')}</p>
+            )}
           </div>
 
           <p className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">

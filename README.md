@@ -66,6 +66,16 @@ Enable Banking and SimpleFIN are configured in `.env`, then restart with `docker
 
 Sign up at [pluggy.ai](https://pluggy.ai), copy your Client ID and Client Secret, and save them under **Workspace settings → Integrations**. Each workspace uses its own Pluggy account, so people sharing one Securo install don't share credentials. Only workspace owners can change them, and the secret is stored encrypted and never shown again.
 
+## AI categorization and the daily Telegram summary (optional)
+
+A workspace can have an LLM categorize the transactions nothing else categorized (after the bank's category and your rules), and get a daily summary on Telegram to confirm or change each one. If you don't answer, the suggested category stays.
+
+1. Enable the agents module (`AGENTS_ENABLED=true`, `COMPOSE_PROFILES=agents`) and add an LLM connection under **Agents**.
+2. In **Workspace settings → Automation**, turn on *Categorize with AI*, pick the connection and model, and set a minimum confidence.
+3. For the summary, create a bot with [@BotFather](https://t.me/BotFather), save its token under **Workspace settings → Integrations → Telegram**, press *Connect my Telegram*, and set the time under Automation. The bot runs as its own service: add `telegram` to `COMPOSE_PROFILES`.
+
+Privacy: with a cloud model, each transaction's description, payee, amount and date go to that provider; use a local model to keep them on your network. Telegram messages are not end-to-end encrypted.
+
 ### Enable Banking — European banks (PSD2)
 
 Sign up at [enablebanking.com](https://enablebanking.com), create a Production application, and download its PEM private key. Save the PEM to `./secrets/` (gitignored), then add:
