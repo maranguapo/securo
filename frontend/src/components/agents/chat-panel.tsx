@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { agents } from '@/lib/api'
 import type { Agent, AgentMessage } from '@/lib/api'
 import { streamChat, type AgentStreamEvent } from '@/lib/agents-stream'
+import { randomId } from '@/lib/random-id'
 import { Markdown } from '@/components/agents/markdown'
 import { ToolDebugChip } from '@/components/agents/tool-debug-chip'
 import { ProposalCard } from '@/components/agents/proposal-card'
@@ -131,7 +132,7 @@ export function ChatPanel({ agent, conversationId, onConversationCreated, focusS
     // can ask the backend to generate a real title from the LLM after
     // streaming completes successfully.
     const startedFresh = !conversationId
-    const localId = crypto.randomUUID()
+    const localId = randomId()
     setPendingUser({ id: 'pending-user-' + localId, role: 'user', text: trimmed, tools: [] })
     setDraft({ id: 'draft-' + localId, role: 'assistant', text: '', tools: [], pending: true })
     try {
