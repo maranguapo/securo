@@ -171,6 +171,7 @@
   "GET /api/users/{id}": 401,
   "GET /api/workspaces": 401,
   "GET /api/workspaces/current": 401,
+  "GET /api/workspaces/{workspace_id}/automation": 401,
   "GET /api/workspaces/{workspace_id}/integrations/pluggy": 401,
   "GET /api/workspaces/{workspace_id}/members": 401,
   "GET /api/workspaces/{workspace_id}/stats": 401,
@@ -315,9 +316,11 @@
   "POST /api/transactions/{transaction_id}/create-counterpart": 401,
   "POST /api/workspaces": 401,
   "POST /api/workspaces/{workspace_id}/archive": 401,
+  "POST /api/workspaces/{workspace_id}/automation/run-now": 401,
   "POST /api/workspaces/{workspace_id}/members": 401,
   "PUT /api/agents/{agent_id}/tools": 401,
   "PUT /api/reconciliation/rules/{node}/order": 401,
+  "PUT /api/workspaces/{workspace_id}/automation": 401,
   "PUT /api/workspaces/{workspace_id}/integrations/pluggy": 401
  },
  "empty": {
@@ -387,6 +390,7 @@
   "POST /api/workspaces": 422,
   "POST /api/workspaces/{workspace_id}/members": 422,
   "PUT /api/reconciliation/rules/{node}/order": 422,
+  "PUT /api/workspaces/{workspace_id}/automation": 422,
   "PUT /api/workspaces/{workspace_id}/integrations/pluggy": 422
  },
  "ok": {
@@ -559,6 +563,7 @@
   "GET /api/users/{id}": 403,
   "GET /api/workspaces": 200,
   "GET /api/workspaces/current": 200,
+  "GET /api/workspaces/{workspace_id}/automation": 200,
   "GET /api/workspaces/{workspace_id}/integrations/pluggy": 200,
   "GET /api/workspaces/{workspace_id}/members": 200,
   "GET /api/workspaces/{workspace_id}/stats": 200,
@@ -703,9 +708,11 @@
   "POST /api/transactions/{transaction_id}/create-counterpart": 201,
   "POST /api/workspaces": 201,
   "POST /api/workspaces/{workspace_id}/archive": 400,
+  "POST /api/workspaces/{workspace_id}/automation/run-now": 200,
   "POST /api/workspaces/{workspace_id}/members": 400,
   "PUT /api/agents/{agent_id}/tools": 200,
   "PUT /api/reconciliation/rules/{node}/order": 400,
+  "PUT /api/workspaces/{workspace_id}/automation": 200,
   "PUT /api/workspaces/{workspace_id}/integrations/pluggy": 422
  },
  "unknown_id": {
@@ -792,6 +799,7 @@
   "GET /api/transactions/{transaction_id}/transfer-candidates": 404,
   "GET /api/transactions/{transaction_id}/transfer-pair": 404,
   "GET /api/users/{id}": 403,
+  "GET /api/workspaces/{workspace_id}/automation": 404,
   "GET /api/workspaces/{workspace_id}/integrations/pluggy": 404,
   "GET /api/workspaces/{workspace_id}/members": 404,
   "GET /api/workspaces/{workspace_id}/stats": 404,
@@ -866,8 +874,10 @@
   "POST /api/transactions/{transaction_id}/attachments": 404,
   "POST /api/transactions/{transaction_id}/create-counterpart": 422,
   "POST /api/workspaces/{workspace_id}/archive": 404,
+  "POST /api/workspaces/{workspace_id}/automation/run-now": 404,
   "POST /api/workspaces/{workspace_id}/members": 404,
   "PUT /api/agents/{agent_id}/tools": 404,
+  "PUT /api/workspaces/{workspace_id}/automation": 404,
   "PUT /api/workspaces/{workspace_id}/integrations/pluggy": 422
  },
  "viewer": {
@@ -1050,9 +1060,11 @@
   "POST /api/transactions/{transaction_id}/create-counterpart": 403,
   "POST /api/workspaces": 201,
   "POST /api/workspaces/{workspace_id}/archive": 403,
+  "POST /api/workspaces/{workspace_id}/automation/run-now": 403,
   "POST /api/workspaces/{workspace_id}/members": 403,
   "PUT /api/agents/{agent_id}/tools": 403,
   "PUT /api/reconciliation/rules/{node}/order": 403,
+  "PUT /api/workspaces/{workspace_id}/automation": 403,
   "PUT /api/workspaces/{workspace_id}/integrations/pluggy": 422
  }
 }

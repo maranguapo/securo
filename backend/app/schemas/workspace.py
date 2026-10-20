@@ -111,3 +111,24 @@ class IntegrationStatusRead(BaseModel):
 class PluggyCredentialsUpdate(BaseModel):
     client_id: str = Field(min_length=1, max_length=255)
     client_secret: str = Field(min_length=1, max_length=500)
+
+
+class AutomationSettingsRead(BaseModel):
+    ai_categorization_enabled: bool = False
+    llm_connection_id: Optional[uuid.UUID] = None
+    llm_model: Optional[str] = None
+    min_confidence: float = 0.6
+    # False when the server runs without the agents module: the LLM
+    # connections live there, so the feature cannot be turned on.
+    agents_enabled: bool = True
+
+
+class AutomationSettingsUpdate(BaseModel):
+    ai_categorization_enabled: bool
+    llm_connection_id: Optional[uuid.UUID] = None
+    llm_model: Optional[str] = Field(default=None, max_length=120)
+    min_confidence: float = Field(default=0.6, ge=0.3, le=1.0)
+
+
+class AutomationRunResult(BaseModel):
+    categorized: int

@@ -1,4 +1,5 @@
 from celery import Celery
+from celery.schedules import crontab
 
 from app.core.config import get_settings
 
@@ -22,6 +23,13 @@ celery_app.conf.beat_schedule = {
     "sync-all-connections-hourly": {
         "task": "app.tasks.sync_tasks.sync_all_connections",
         "schedule": 60 * 60,  # every hour; task itself skips connections synced < 4h ago
+    },
+    "run-workspace-automations": {
+        "task": "app.tasks.automation_tasks.run_workspace_automations",
+        # Picks up whatever the syncs (every few hours), imports and manual
+        # entries left uncategorized, a few minutes after they land. A no-op
+        # for workspaces that have not switched the feature on.
+        "schedule": crontab(minute="*/5"),
     },
     "generate-recurring-daily": {
         "task": "app.tasks.recurring_tasks.generate_all_recurring",
@@ -64,6 +72,7 @@ celery_app.conf.beat_schedule = {
 
 celery_app.conf.include = [
     "app.tasks.sync_tasks",
+    "app.tasks.automation_tasks",
     "app.tasks.recurring_tasks",
     "app.tasks.invoice_schedule_tasks",
     "app.tasks.asset_tasks",

@@ -54,6 +54,19 @@ export interface IntegrationStatus {
   client_id: string | null
 }
 
+// How a workspace uses an LLM to categorize its transactions.
+export interface AutomationSettings {
+  ai_categorization_enabled: boolean
+  llm_connection_id: string | null
+  llm_model: string | null
+  min_confidence: number
+  // False when the server runs without the agents module, which owns the LLM
+  // connections the feature needs.
+  agents_enabled: boolean
+}
+
+export type AutomationSettingsPayload = Omit<AutomationSettings, 'agents_enabled'>
+
 export interface Workspace {
   id: string
   name: string

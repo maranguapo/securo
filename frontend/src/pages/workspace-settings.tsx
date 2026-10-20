@@ -18,6 +18,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { IconPicker } from '@/components/icon-picker'
 import { WorkspaceIntegrations } from '@/components/workspace-integrations'
+import { WorkspaceAutomation } from '@/components/workspace-automation'
 import { CategoryIcon } from '@/components/category-icon'
 import {
   Popover,
@@ -507,6 +508,8 @@ export default function WorkspaceSettingsPage() {
       </section>
 
       <WorkspaceIntegrations workspaceId={current.id} canManage={canManage} />
+
+      <WorkspaceAutomation workspaceId={current.id} canManage={canManage} />
 
       {/* Members card */}
       <section className="space-y-4 rounded-xl border bg-card p-6">

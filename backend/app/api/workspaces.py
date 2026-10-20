@@ -20,6 +20,9 @@ from app.core.workspace_context import WorkspaceContext, current_workspace
 from app.models.user import User
 from app.models.workspace import Workspace, WorkspaceMember
 from app.schemas.workspace import (
+    AutomationRunResult,
+    AutomationSettingsRead,
+    AutomationSettingsUpdate,
     IntegrationStatusRead,
     MemberInvite,
     MemberRead,
@@ -29,7 +32,13 @@ from app.schemas.workspace import (
     WorkspaceRead,
     WorkspaceUpdate,
 )
-from app.services import integration_service, module_service, workspace_service
+from app.agents.config import get_agent_settings
+from app.services import (
+    ai_categorization_service,
+    integration_service,
+    module_service,
+    workspace_service,
+)
 
 router = APIRouter(prefix="/api/workspaces", tags=["workspaces"])
 
@@ -221,6 +230,82 @@ async def delete_pluggy_integration(
         session, workspace_id, user.id, min_role="owner"
     )
     await integration_service.delete_integration(session, workspace_id)
+
+
+@router.get("/{workspace_id}/automation", response_model=AutomationSettingsRead)
+async def get_automation_settings(
+    workspace_id: uuid.UUID,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    await workspace_service.require_membership(session, workspace_id, user.id)
+    row = await ai_categorization_service.get_settings(session, workspace_id)
+    agents_enabled = get_agent_settings().enabled
+    if row is None:
+        return AutomationSettingsRead(agents_enabled=agents_enabled)
+    return AutomationSettingsRead(
+        ai_categorization_enabled=row.ai_categorization_enabled,
+        llm_connection_id=row.llm_connection_id,
+        llm_model=row.llm_model,
+        min_confidence=row.min_confidence,
+        agents_enabled=agents_enabled,
+    )
+
+
+@router.put("/{workspace_id}/automation", response_model=AutomationSettingsRead)
+async def save_automation_settings(
+    workspace_id: uuid.UUID,
+    body: AutomationSettingsUpdate,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    await workspace_service.require_membership(
+        session, workspace_id, user.id, min_role="owner"
+    )
+    agents_enabled = get_agent_settings().enabled
+    if body.ai_categorization_enabled and not agents_enabled:
+        raise HTTPException(
+            status_code=400,
+            detail="AI categorization needs the agents module (AGENTS_ENABLED=true).",
+        )
+    try:
+        row = await ai_categorization_service.save_settings(
+            session,
+            workspace_id,
+            user.id,
+            enabled=body.ai_categorization_enabled,
+            llm_connection_id=body.llm_connection_id,
+            llm_model=body.llm_model,
+            min_confidence=body.min_confidence,
+        )
+    except ai_categorization_service.InvalidAutomationSettings as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return AutomationSettingsRead(
+        ai_categorization_enabled=row.ai_categorization_enabled,
+        llm_connection_id=row.llm_connection_id,
+        llm_model=row.llm_model,
+        min_confidence=row.min_confidence,
+        agents_enabled=agents_enabled,
+    )
+
+
+@router.post("/{workspace_id}/automation/run-now", response_model=AutomationRunResult)
+async def run_automation_now(
+    workspace_id: uuid.UUID,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """Categorize now instead of waiting for the next scheduled run."""
+    await workspace_service.require_membership(
+        session, workspace_id, user.id, min_role="owner"
+    )
+    if not get_agent_settings().enabled:
+        raise HTTPException(
+            status_code=400,
+            detail="AI categorization needs the agents module (AGENTS_ENABLED=true).",
+        )
+    count = await ai_categorization_service.categorize_pending(session, workspace_id)
+    return AutomationRunResult(categorized=count)
 
 
 @router.get("/{workspace_id}/members", response_model=list[MemberRead])

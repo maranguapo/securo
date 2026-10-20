@@ -64,6 +64,8 @@ import type {
   WorkspaceKind,
   WorkspaceMember,
   IntegrationStatus,
+  AutomationSettings,
+  AutomationSettingsPayload,
   WorkspaceRole,
   Asset,
   AssetGroup,
@@ -207,6 +209,21 @@ export const workspaces = {
   },
   removePluggyIntegration: async (id: string): Promise<void> => {
     await api.delete(`/workspaces/${id}/integrations/pluggy`)
+  },
+  getAutomation: async (id: string): Promise<AutomationSettings> => {
+    const { data } = await api.get(`/workspaces/${id}/automation`)
+    return data
+  },
+  saveAutomation: async (
+    id: string,
+    payload: AutomationSettingsPayload,
+  ): Promise<AutomationSettings> => {
+    const { data } = await api.put(`/workspaces/${id}/automation`, payload)
+    return data
+  },
+  runAutomation: async (id: string): Promise<{ categorized: number }> => {
+    const { data } = await api.post(`/workspaces/${id}/automation/run-now`)
+    return data
   },
 }
 
