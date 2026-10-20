@@ -356,7 +356,7 @@ async def test_oauth_callback_respects_initial_asset_sync_opt_out(
         ),
     ])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock):
         connection = await handle_oauth_callback(
             session,
@@ -394,7 +394,7 @@ async def test_oauth_callback_respects_state_asset_sync_opt_out(
         ),
     ])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.oauth_state.consume_state", new_callable=AsyncMock, return_value={
              "user_id": str(test_user.id),
              "workspace_id": str(test_workspace.id),
@@ -456,7 +456,7 @@ async def test_token_reconnect_updates_existing_connection_without_deleting_acco
         accounts=[],
     ))
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider):
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider):
         reconnected = await handle_oauth_callback(
             session,
             test_workspace.id,
@@ -666,13 +666,15 @@ async def test_delete_connection_keeps_payees_with_external_mappings(session: As
 
 
 @pytest.mark.asyncio
-async def test_create_connect_token_success(test_user):
+async def test_create_connect_token_success(session: AsyncSession, test_user, test_workspace):
     mock_provider = AsyncMock()
     mock_provider.create_connect_token = AsyncMock(
         return_value=ConnectTokenData(access_token="tok-123")
     )
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider):
-        result = await create_connect_token("pluggy", test_user.id)
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider):
+        result = await create_connect_token(
+            session, "pluggy", test_workspace.id, test_user.id
+        )
     assert result == {"access_token": "tok-123"}
 
 
@@ -702,7 +704,7 @@ async def test_handle_oauth_callback_creates_connection(session: AsyncSession, t
         ),
     ])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock), \
          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):
@@ -745,7 +747,7 @@ async def test_handle_oauth_callback_names_disambiguated_account_from_institutio
     ))
     mock_provider.get_transactions = AsyncMock(return_value=[])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock), \
          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):
@@ -779,7 +781,7 @@ async def test_handle_oauth_callback_deduplicates_initial_transactions(
     )
     mock_provider.get_transactions = AsyncMock(return_value=[duplicate, duplicate])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock), \
          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):
@@ -815,7 +817,7 @@ async def test_handle_oauth_callback_with_payee(session: AsyncSession, test_user
         ),
     ])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock), \
          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):
@@ -847,7 +849,7 @@ async def test_sync_connection_new_transactions(session: AsyncSession, test_user
         ),
     ])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock), \
          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):
@@ -885,7 +887,7 @@ async def test_sync_connection_partial_user_action_warning_marks_connection_erro
         ),
     ])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock), \
          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):
@@ -963,7 +965,7 @@ async def test_sync_connection_simplefin_rekey_does_not_duplicate_account_or_tx(
         ),
     ])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock), \
          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):
@@ -1154,7 +1156,7 @@ async def test_sync_connection_simplefin_keeps_account_ids_reserved_across_accou
     ])
     mock_provider.get_transactions = AsyncMock(side_effect=_get_transactions)
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock), \
          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):
@@ -1302,7 +1304,7 @@ async def test_sync_simplefin_rekeys_account_of_relinked_bank(
     ])
     mock_provider.get_transactions = AsyncMock(return_value=[])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock), \
          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):
@@ -1376,7 +1378,7 @@ async def test_sync_simplefin_second_login_does_not_adopt_an_absent_account(
     ])
     mock_provider.get_transactions = AsyncMock(return_value=[])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock), \
          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):
@@ -1522,7 +1524,7 @@ async def test_sync_upserts_matching_csv_import_without_overwriting_user_fields(
         ),
     ])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock), \
          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock) as apply_rules:
@@ -1569,7 +1571,7 @@ async def test_sync_upserts_matching_csv_import_without_overwriting_user_fields(
         ),
         *mock_provider.get_transactions.return_value[1:],
     ])
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock), \
          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):
@@ -1632,7 +1634,7 @@ async def test_sync_connection_opening_balance_ignores_removed_phantom(
         ),
     ])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider),          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock),          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock),          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider),          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock),          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock),          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):
         await sync_connection(session, conn.id, test_workspace.id, test_user.id)
 
     rows = (await session.execute(
@@ -1687,7 +1689,7 @@ async def test_phantom_cleanup_leaves_a_closed_accounts_opening_balance_alone(
     ])
     mock_provider.get_transactions = AsyncMock(return_value=[])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider),          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock),          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock),          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider),          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock),          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock),          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):
         await sync_connection(session, conn.id, test_workspace.id, test_user.id)
 
     rows = (await session.execute(
@@ -1757,7 +1759,7 @@ async def test_phantom_cleanup_keeps_a_same_day_repeat_the_provider_still_return
         )).scalars().all()
         return {row.external_id for row in rows}
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock), \
          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):
@@ -1827,7 +1829,7 @@ async def test_phantom_cleanup_counts_a_returned_pending_id_with_import_pending_
         )
     ])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock), \
          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):
@@ -1888,7 +1890,7 @@ async def test_sync_connection_tolerates_duplicate_transaction_rows(
         ),
     ])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock), \
          patch("app.services.connection_service._cleanup_phantom_duplicates", new_callable=AsyncMock), \
@@ -1959,7 +1961,7 @@ async def test_sync_connection_with_category_mapping(session: AsyncSession, test
         ),
     ])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock):
         result_conn, _ = await sync_connection(session, conn.id, test_workspace.id, test_user.id)
@@ -2019,7 +2021,7 @@ async def test_sync_keeps_provider_category_while_normalizing_description(
     )
 
     with patch(
-        "app.services.connection_service.get_provider",
+        "app.services.connection_service.provider_for_workspace",
         return_value=mock_provider,
     ), patch(
         "app.services.connection_service.detect_transfer_pairs",
@@ -2089,7 +2091,7 @@ async def test_sync_rule_category_wins_over_provider_category(
         ),
     ])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock):
         await sync_connection(session, conn.id, test_workspace.id, test_user.id)
@@ -2138,7 +2140,7 @@ async def test_incremental_sync_rule_category_wins_over_provider_category(
     ])
     mock_provider.get_transactions = AsyncMock(return_value=[])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock), \
          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):
@@ -2154,7 +2156,7 @@ async def test_incremental_sync_rule_category_wins_over_provider_category(
         ),
     ])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock):
         await sync_connection(session, conn.id, test_workspace.id, test_user.id)
@@ -2196,7 +2198,7 @@ async def test_incremental_sync_reuses_latest_installment_category_when_provider
     ])
     mock_provider.get_transactions = AsyncMock(return_value=[])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock), \
          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):
@@ -2270,7 +2272,7 @@ async def test_incremental_sync_reuses_latest_installment_category_when_provider
         ),
     ])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.admin_service.use_provider_categories", new_callable=AsyncMock, return_value=False), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock), \
@@ -2337,7 +2339,7 @@ async def test_oauth_callback_rule_category_wins_over_provider_category(
         ),
     ])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock):
         await handle_oauth_callback(
@@ -2358,7 +2360,7 @@ async def test_sync_connection_error_raises(session: AsyncSession, test_user, te
     mock_provider = AsyncMock()
     mock_provider.refresh_credentials = AsyncMock(side_effect=RuntimeError("API down"))
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider):
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider):
         with pytest.raises(RuntimeError, match="API down"):
             await sync_connection(session, conn.id, test_workspace.id, test_user.id)
 
@@ -2378,7 +2380,7 @@ async def test_sync_connection_user_action_marks_error(
         )
     )
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider):
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider):
         with pytest.raises(ProviderUserActionRequired):
             await sync_connection(session, conn.id, test_workspace.id, test_user.id)
 
@@ -2414,7 +2416,7 @@ async def test_sync_connection_skips_pending(session: AsyncSession, test_user, t
         ),
     ])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock), \
          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):
@@ -2449,7 +2451,7 @@ async def test_sync_connection_skips_holdings_when_asset_sync_disabled(
         ),
     ])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock), \
          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):
@@ -2484,7 +2486,7 @@ async def test_sync_connection_imports_holdings_by_default(
         ),
     ])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock), \
          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):
@@ -2542,7 +2544,7 @@ async def test_sync_connection_does_not_revive_ignored_transaction(
         ),
     ])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock), \
          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):
@@ -2596,7 +2598,7 @@ async def test_oauth_callback_persists_installment_metadata(
         ),
     ])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock), \
          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):
@@ -2650,7 +2652,7 @@ async def test_sync_connection_persists_installment_metadata(
         ),
     ])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock), \
          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):
@@ -2681,7 +2683,7 @@ async def test_sync_connection_preserves_display_name(session: AsyncSession, tes
     ])
     mock_provider.get_transactions = AsyncMock(return_value=[])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock), \
          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):
@@ -2702,7 +2704,7 @@ async def test_sync_connection_preserves_display_name(session: AsyncSession, tes
         ),
     ])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock), \
          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):
@@ -2735,7 +2737,7 @@ async def test_sync_connection_does_not_recreate_closed_accounts(
     ])
     mock_provider.get_transactions = AsyncMock(return_value=[])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock), \
          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):
@@ -2759,7 +2761,7 @@ async def test_sync_connection_does_not_recreate_closed_accounts(
         ),
     ])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock), \
          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):
@@ -2838,7 +2840,7 @@ async def test_sync_persists_bills_for_credit_card_account(
     mock_provider = _cc_provider_mock(bills=bills, transactions=[])
 
     p1, p2, p3 = _patch_sync_helpers()
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          p1, p2, p3:
         await sync_connection(session, conn.id, test_workspace.id, test_user.id)
 
@@ -2880,7 +2882,7 @@ async def test_sync_links_transaction_to_matching_bill(
     mock_provider = _cc_provider_mock(bills=[bill], transactions=[txn])
 
     p1, p2, p3 = _patch_sync_helpers()
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          p1, p2, p3:
         await sync_connection(session, conn.id, test_workspace.id, test_user.id)
 
@@ -2926,7 +2928,7 @@ async def test_sync_falls_back_to_cycle_math_when_bill_missing(
     mock_provider.get_bills = AsyncMock(return_value=[])  # empty feed
 
     p1, p2, p3 = _patch_sync_helpers()
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          p1, p2, p3:
         await sync_connection(session, conn.id, test_workspace.id, test_user.id)
 
@@ -2959,7 +2961,7 @@ async def test_sync_swallows_get_bills_error(
     )
 
     p1, p2, p3 = _patch_sync_helpers()
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          p1, p2, p3:
         result, _ = await sync_connection(session, conn.id, test_workspace.id, test_user.id)
 
@@ -2989,7 +2991,7 @@ async def test_sync_skips_get_bills_for_non_credit_card_account(
     mock_provider.get_bills = AsyncMock(return_value=[])
 
     p1, p2, p3 = _patch_sync_helpers()
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          p1, p2, p3:
         await sync_connection(session, conn.id, test_workspace.id, test_user.id)
 
@@ -3020,7 +3022,7 @@ async def test_sync_backfills_bill_link_on_existing_transaction(
     mock_provider = _cc_provider_mock(bills=[], transactions=[txn_v0])
 
     p1, p2, p3 = _patch_sync_helpers()
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          p1, p2, p3:
         await sync_connection(session, conn.id, test_workspace.id, test_user.id)
 
@@ -3039,7 +3041,7 @@ async def test_sync_backfills_bill_link_on_existing_transaction(
     mock_provider.get_bills = AsyncMock(return_value=[bill])
     mock_provider.get_transactions = AsyncMock(return_value=[txn_v0])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          p1, p2, p3:
         await sync_connection(session, conn.id, test_workspace.id, test_user.id)
 
@@ -3082,7 +3084,7 @@ async def test_sync_relinks_transaction_when_bank_moves_it_to_another_bill(
     mock_provider = _cc_provider_mock(bills=[bill_a, bill_b], transactions=[txn_to_a])
 
     p1, p2, p3 = _patch_sync_helpers()
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          p1, p2, p3:
         await sync_connection(session, conn.id, test_workspace.id, test_user.id)
 
@@ -3094,7 +3096,7 @@ async def test_sync_relinks_transaction_when_bank_moves_it_to_another_bill(
     )
     mock_provider.get_transactions = AsyncMock(return_value=[txn_to_b])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          p1, p2, p3:
         await sync_connection(session, conn.id, test_workspace.id, test_user.id)
 
@@ -3133,7 +3135,7 @@ async def test_sync_creates_synthetic_transactions_for_finance_charges(
     mock_provider = _cc_provider_mock(bills=[bill], transactions=[])
 
     p1, p2, p3 = _patch_sync_helpers()
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          p1, p2, p3:
         await sync_connection(session, conn.id, test_workspace.id, test_user.id)
 
@@ -3195,7 +3197,7 @@ async def test_sync_dates_charges_at_cycle_close_when_close_day_known(
     mock_provider.get_bills = AsyncMock(return_value=[bill])
 
     p1, p2, p3 = _patch_sync_helpers()
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          p1, p2, p3:
         await sync_connection(session, conn.id, test_workspace.id, test_user.id)
 
@@ -3235,7 +3237,7 @@ async def test_sync_skips_carry_over_balance_finance_charge(
     mock_provider = _cc_provider_mock(bills=[bill], transactions=[])
 
     p1, p2, p3 = _patch_sync_helpers()
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          p1, p2, p3:
         await sync_connection(session, conn.id, test_workspace.id, test_user.id)
 
@@ -3275,7 +3277,7 @@ async def test_sync_skips_juros_aggregate_finance_charge(
     mock_provider = _cc_provider_mock(bills=[bill], transactions=[])
 
     p1, p2, p3 = _patch_sync_helpers()
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          p1, p2, p3:
         await sync_connection(session, conn.id, test_workspace.id, test_user.id)
 
@@ -3312,7 +3314,7 @@ async def test_sync_finance_charges_are_idempotent(
     p1, p2, p3 = _patch_sync_helpers()
 
     for _ in range(2):
-        with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+        with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
              p1, p2, p3:
             await sync_connection(session, conn.id, test_workspace.id, test_user.id)
 
@@ -3348,7 +3350,7 @@ async def test_sync_removes_orphaned_finance_charges_on_resync(
     mock_provider = _cc_provider_mock(bills=[bill_v1], transactions=[])
     p1, p2, p3 = _patch_sync_helpers()
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          p1, p2, p3:
         await sync_connection(session, conn.id, test_workspace.id, test_user.id)
 
@@ -3367,7 +3369,7 @@ async def test_sync_removes_orphaned_finance_charges_on_resync(
     )
     mock_provider.get_bills = AsyncMock(return_value=[bill_v2])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          p1, p2, p3:
         await sync_connection(session, conn.id, test_workspace.id, test_user.id)
 
@@ -3409,7 +3411,7 @@ async def test_sync_does_not_overwrite_manual_effective_bill_date(
     mock_provider = _cc_provider_mock(bills=[bill_a], transactions=[txn])
     p1, p2, p3 = _patch_sync_helpers()
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          p1, p2, p3:
         await sync_connection(session, conn.id, test_workspace.id, test_user.id)
 
@@ -3424,7 +3426,7 @@ async def test_sync_does_not_overwrite_manual_effective_bill_date(
     await session.commit()
 
     # Re-sync — provider still says bill A. Override must be preserved.
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          p1, p2, p3:
         await sync_connection(session, conn.id, test_workspace.id, test_user.id)
 
@@ -3456,7 +3458,7 @@ async def test_sync_updates_existing_bill_idempotently(
     mock_provider = _cc_provider_mock(bills=[bill_v1], transactions=[])
 
     p1, p2, p3 = _patch_sync_helpers()
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          p1, p2, p3:
         await sync_connection(session, conn.id, test_workspace.id, test_user.id)
 
@@ -3469,7 +3471,7 @@ async def test_sync_updates_existing_bill_idempotently(
     )
     mock_provider.get_bills = AsyncMock(return_value=[bill_v2])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          p1, p2, p3:
         await sync_connection(session, conn.id, test_workspace.id, test_user.id)
 
@@ -3517,7 +3519,7 @@ async def test_sync_dedupes_pending_posted_twin_in_same_fetch(
         ),
     ])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock), \
          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):
@@ -3564,7 +3566,7 @@ async def test_sync_dedupes_pending_posted_twin_with_identical_descriptions(
         ),
     ])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock), \
          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):
@@ -3612,7 +3614,7 @@ async def test_sync_keeps_unrelated_pending_and_posted_with_different_descriptio
         ),
     ])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock), \
          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):
@@ -3651,7 +3653,7 @@ async def test_sync_upgrades_pending_to_posted_when_twin_arrives(
     )
     mock_provider.get_transactions = AsyncMock(return_value=[pending])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock), \
          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):
@@ -3668,7 +3670,7 @@ async def test_sync_upgrades_pending_to_posted_when_twin_arrives(
     )
     mock_provider.get_transactions = AsyncMock(return_value=[pending, posted])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock), \
          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):
@@ -3740,7 +3742,7 @@ async def test_sync_dedupes_advanced_installment_payment(
     )
 
     p1, p2, p3 = _patch_sync_helpers()
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          p1, p2, p3:
         await sync_connection(session, conn.id, test_workspace.id, test_user.id)
 
@@ -3814,7 +3816,7 @@ async def test_sync_dedupes_advanced_installment_when_pending_lands_first(
     )
 
     p1, p2, p3 = _patch_sync_helpers()
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          p1, p2, p3:
         await sync_connection(session, conn.id, test_workspace.id, test_user.id)
 
@@ -3864,7 +3866,7 @@ async def test_sync_keeps_genuine_same_day_repeats(
         ),
     ])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock), \
          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):
@@ -3936,7 +3938,7 @@ async def test_sync_normalizes_simplefin_card_balance_to_positive_for_debt(
     mock_provider.get_transactions = AsyncMock(return_value=[])
     mock_provider.get_bills = AsyncMock(return_value=[])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock), \
          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):
@@ -3977,7 +3979,7 @@ async def test_sync_leaves_simplefin_checking_balance_unchanged(
     mock_provider.get_transactions = AsyncMock(return_value=[])
     mock_provider.get_bills = AsyncMock(return_value=[])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock), \
          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):
@@ -4060,7 +4062,7 @@ async def test_sync_holdings_splits_wallets_per_account(
             account_external_id="acc-1", account_name="Employer 401(k)",
         ),
     ]
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider):
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider):
         await _sync_holdings(session, test_user.id, conn, {"token": "fake"})
     await session.commit()
 
@@ -4147,7 +4149,7 @@ async def test_sync_wires_account_institutions_and_reaps_orphans(
 
     def _patched(mock):
         return (
-            patch("app.services.connection_service.get_provider", return_value=mock),
+            patch("app.services.connection_service.provider_for_workspace", return_value=mock),
             patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock),
             patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock),
             patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock),
@@ -4199,7 +4201,7 @@ async def test_sync_keeps_user_defined_account_display_name(
     ))
     await session.commit()
 
-    with patch("app.services.connection_service.get_provider", return_value=_institution_provider("Chase")), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=_institution_provider("Chase")), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock), \
          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):
@@ -4257,7 +4259,7 @@ async def test_sync_holdings_readopts_orphaned_wallet_after_reconnect(
             account_external_id="acc-1", account_name="IRA",
         ),
     ]
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider):
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider):
         await _sync_holdings(session, test_user.id, conn, {"token": "t"})
     await session.commit()
 
@@ -4327,7 +4329,7 @@ async def test_sync_holdings_keeps_emptied_wallet_a_goal_tracks(
             account_external_id="acc-1", account_name="401(k)",
         ),
     ]
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider):
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider):
         await _sync_holdings(session, test_user.id, conn, {"token": "t"})
     await session.commit()
 
@@ -4381,7 +4383,7 @@ async def test_sync_holdings_adoption_preserves_wallet_customization(
             account_external_id="acc-1", account_name="Rollover IRA",
         ),
     ]
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider):
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider):
         await _sync_holdings(session, test_user.id, conn, {"token": "fake"})
     await session.commit()
 
@@ -4459,7 +4461,7 @@ async def test_sync_holdings_mixed_hints_stay_stable_across_syncs(
 
     for _ in range(2):  # the second pass is the regression
         with patch(
-            "app.services.connection_service.get_provider", return_value=mock_provider
+            "app.services.connection_service.provider_for_workspace", return_value=mock_provider
         ):
             await _sync_holdings(session, test_user.id, conn, {"token": "fake"})
         await session.commit()
@@ -4518,7 +4520,7 @@ async def test_sync_holdings_adoption_refreshes_suffixed_auto_names(
             account_external_id="acc-1", account_name="Employer 401(k)",
         ),
     ]
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider):
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider):
         await _sync_holdings(session, test_user.id, conn, {"token": "fake"})
     await session.commit()
 
@@ -4572,7 +4574,7 @@ async def test_sync_holdings_unattributed_first_keeps_default_wallet_key(
 
     for _ in range(2):
         with patch(
-            "app.services.connection_service.get_provider", return_value=mock_provider
+            "app.services.connection_service.provider_for_workspace", return_value=mock_provider
         ):
             await _sync_holdings(session, test_user.id, conn, {"token": "fake"})
         await session.commit()
@@ -4633,7 +4635,7 @@ async def test_sync_holdings_never_adopts_another_connections_orphan(
             account_external_id="acc-1", account_name="Brokerage",
         ),
     ]
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider):
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider):
         await _sync_holdings(session, test_user.id, conn, {"token": "fake"})
     await session.commit()
 
@@ -4699,7 +4701,7 @@ async def test_sync_holdings_adopts_own_stale_wallet_over_foreign_orphan(
             account_external_id="acc-1", account_name="IRA",
         ),
     ]
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider):
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider):
         await _sync_holdings(session, test_user.id, conn, {"token": "fake"})
     await session.commit()
 
@@ -4762,7 +4764,7 @@ async def test_sync_holdings_prefers_exact_key_match_over_stale_candidate(
             account_external_id="acc-1", account_name="IRA",
         ),
     ]
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider):
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider):
         await _sync_holdings(session, test_user.id, conn, {"token": "fake"})
     await session.commit()
 
@@ -4815,7 +4817,7 @@ async def test_sync_holdings_keyless_reconnect_adopts_stale_wallet(
     ]
     for _ in range(2):
         with patch(
-            "app.services.connection_service.get_provider", return_value=mock_provider
+            "app.services.connection_service.provider_for_workspace", return_value=mock_provider
         ):
             await _sync_holdings(session, test_user.id, conn, {"token": "fake"})
         await session.commit()
@@ -4866,7 +4868,7 @@ async def test_sync_holdings_adoption_keeps_name_matching_account(
             account_external_id="acc-1", account_name="Vanguard",
         ),
     ]
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider):
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider):
         await _sync_holdings(session, test_user.id, conn, {"token": "fake"})
     await session.commit()
 
@@ -4920,7 +4922,7 @@ async def test_sync_holdings_reaps_emptied_unreferenced_wallet(
             account_external_id="acc-1", account_name="IRA",
         ),
     ]
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider):
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider):
         await _sync_holdings(session, test_user.id, conn, {"token": "fake"})
     await session.commit()
 
@@ -4972,7 +4974,7 @@ async def test_sync_holdings_readopts_split_wallet_after_reconnect(
             account_external_id="acc-1", account_name="IRA",
         ),
     ]
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider):
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider):
         await _sync_holdings(session, test_user.id, conn, {"token": "fake"})
     await session.commit()
 
@@ -5022,7 +5024,7 @@ async def test_sync_holdings_rekeys_split_wallet_after_inplace_reconnect(
             account_external_id="acc-1", account_name="401(k)",
         ),
     ]
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider):
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider):
         await _sync_holdings(session, test_user.id, conn, {"token": "fake"})
     await session.commit()
 
@@ -5077,7 +5079,7 @@ async def test_sync_holdings_hint_loss_does_not_drain_split_wallets(
             current_value=Decimal("10"),
         ),
     ]
-    with patch("app.services.connection_service.get_provider", return_value=degraded):
+    with patch("app.services.connection_service.provider_for_workspace", return_value=degraded):
         await _sync_holdings(session, test_user.id, conn, {"token": "fake"})
     await session.commit()
 
@@ -5097,7 +5099,7 @@ async def test_sync_holdings_hint_loss_does_not_drain_split_wallets(
             account_external_id="acc-1", account_name="IRA",
         ),
     ]
-    with patch("app.services.connection_service.get_provider", return_value=healthy):
+    with patch("app.services.connection_service.provider_for_workspace", return_value=healthy):
         await _sync_holdings(session, test_user.id, conn, {"token": "fake"})
     await session.commit()
 
@@ -5179,7 +5181,7 @@ async def test_sync_holdings_new_account_first_keeps_default_wallet(
             current_value=Decimal("5"),
         ),
     ]
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider):
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider):
         await _sync_holdings(session, test_user.id, conn, {"token": "fake"})
     await session.commit()
 
@@ -5247,7 +5249,7 @@ async def test_sync_holdings_never_touches_another_workspaces_wallets(
             account_external_id="acc-1", account_name="IRA",
         ),
     ]
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider):
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider):
         await _sync_holdings(session, test_user.id, conn, {"token": "fake"})
     await session.commit()
 
@@ -5444,7 +5446,7 @@ async def test_sync_holdings_survives_losing_the_adoption_rekey_race(
     ]
     monkeypatch.setattr(session, "scalar", racing_scalar)
     with patch(
-        "app.services.connection_service.get_provider", return_value=mock_provider
+        "app.services.connection_service.provider_for_workspace", return_value=mock_provider
     ):
         await _sync_holdings(session, test_user.id, conn, {"token": "fake"})
     await session.commit()
@@ -5518,7 +5520,7 @@ async def test_sync_holdings_keyless_bucket_adopts_default_after_rotation(
             current_value=Decimal("5"),
         ),
     ]
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider):
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider):
         await _sync_holdings(session, test_user.id, conn, {"token": "fake"})
     await session.commit()
 
@@ -5593,7 +5595,7 @@ async def test_sync_holdings_new_account_after_rotation_mints_its_own_wallet(
             current_value=Decimal("5"),
         ),
     ]
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider):
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider):
         await _sync_holdings(session, test_user.id, conn, {"token": "fake"})
     await session.commit()
 
@@ -5657,7 +5659,7 @@ async def test_sync_holdings_two_stale_generations_mean_minting(
             account_external_id="acc-1", account_name="IRA",
         ),
     ]
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider):
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider):
         await _sync_holdings(session, test_user.id, conn, {"token": "fake"})
     await session.commit()
 
@@ -5724,7 +5726,7 @@ async def test_sync_holdings_separator_in_account_id_cannot_steal_sibling_wallet
             account_external_id="a::b", account_name="Joint",
         ),
     ]
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider):
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider):
         await _sync_holdings(session, test_user.id, conn, {"token": "fake"})
     await session.commit()
 

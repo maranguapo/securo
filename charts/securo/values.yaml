@@ -19,10 +19,6 @@ secret:
   # If postgresql.enabled is false, you must provide your external database URL here or in existingSecret.
   databaseUrl: 'postgresql+asyncpg://postgres:postgres@{{ include "securo.fullname" . }}-postgresql:5432/securo'
 
-  # Pluggy
-  pluggyClientId: ""
-  pluggyClientSecret: ""
-
   # Enable Banking
   enableBankingAppId: ""
   enableBankingPrivateKey: "" # Content of the PEM file

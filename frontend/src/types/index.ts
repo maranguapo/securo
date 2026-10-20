@@ -47,6 +47,13 @@ export type WorkspaceRole = 'owner' | 'editor' | 'viewer' | 'manager'
 
 export type WorkspaceKind = 'personal' | 'business'
 
+// Whether a workspace has credentials for a provider. The secret is never sent
+// to the client; `client_id` is only present for workspace owners.
+export interface IntegrationStatus {
+  configured: boolean
+  client_id: string | null
+}
+
 export interface Workspace {
   id: string
   name: string

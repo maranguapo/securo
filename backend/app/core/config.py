@@ -26,9 +26,8 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 24  # 24 hours
 
-    # Pluggy
-    pluggy_client_id: str = ""
-    pluggy_client_secret: SecretStr = SecretStr("")
+    # Pluggy. The client id/secret are per workspace (Workspace settings), not
+    # environment variables. Only the redirect URI is deployment-wide.
     # Empty means "derive from FRONTEND_URL" (see BankProvider.redirect_uri).
     # Set explicitly only when the URL registered in the provider dashboard
     # differs from where the app is served.

@@ -17,7 +17,9 @@ from app.agents.models import *  # noqa: F401,F403
 config = context.config
 settings = get_settings()
 
-config.set_main_option("sqlalchemy.url", settings.database_url)
+# configparser interpolates `%`, so a percent-encoded password (%40, %23, ...)
+# would raise ValueError here. Escape it; the value is read back un-escaped.
+config.set_main_option("sqlalchemy.url", settings.database_url.replace("%", "%%"))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

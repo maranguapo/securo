@@ -68,6 +68,8 @@ ALLOWLIST: dict[tuple[str, str], str] = {
     ("POST", "/api/workspaces"): "creates the workspace there is no membership in yet",
     ("PATCH", "/api/workspaces/{workspace_id}"): "owner floor inside the handler",
     ("POST", "/api/workspaces/{workspace_id}/archive"): "owner floor inside the handler",
+    ("PUT", "/api/workspaces/{workspace_id}/integrations/pluggy"): "owner floor inside the handler",
+    ("DELETE", "/api/workspaces/{workspace_id}/integrations/pluggy"): "owner floor inside the handler",
     ("POST", "/api/workspaces/{workspace_id}/members"): "owner floor inside the handler",
     ("PATCH", "/api/workspaces/{workspace_id}/members/{member_user_id}"): "owner floor inside the handler",
     ("DELETE", "/api/workspaces/{workspace_id}/members/{member_user_id}"): "owner floor inside the handler",

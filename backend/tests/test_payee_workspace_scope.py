@@ -194,7 +194,7 @@ async def test_connecting_a_bank_succeeds_with_the_name_already_used_elsewhere(
         ),
     ])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock), \
          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):
@@ -242,7 +242,7 @@ async def test_connecting_the_bank_succeeds_on_the_callback_itself(
         ),
     ])
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock), \
          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):

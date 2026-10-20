@@ -27,28 +27,43 @@ from app.schemas.bank_connection import (
     ReauthUrlResponse,
     ReconnectTokenResponse,
 )
-from app.services import connection_service
+from app.services import connection_service, integration_service
 from app.services.transfer_detection_service import detect_transfer_pairs, unlink_transfer_pair
 
 router = APIRouter(prefix="/api/connections", tags=["connections"])
 
 
 @router.get("/providers")
-async def get_available_providers():
-    """List all known open finance providers with configuration status."""
-    return {"providers": all_known_providers()}
+async def get_available_providers(
+    ctx: WorkspaceContext = Depends(current_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """List all known open finance providers with configuration status.
+
+    Pluggy is configured per workspace, so its flag reflects whether *this*
+    workspace has saved credentials, not whether the server has any.
+    """
+    providers = all_known_providers()
+    pluggy = await integration_service.get_status(session, ctx.workspace.id)
+    for provider in providers:
+        if provider["name"] == integration_service.PLUGGY:
+            provider["configured"] = pluggy.configured
+    return {"providers": providers}
 
 
 @router.post("/connect-token", response_model=ConnectTokenResponse)
 async def create_connect_token(
     data: ConnectTokenRequest,
     ctx: WorkspaceContext = Depends(current_writable_workspace),
+    session: AsyncSession = Depends(get_async_session),
 ):
     """Create a connect token for widget-based bank connection flows."""
     try:
-        token_data = await connection_service.create_connect_token(data.provider, ctx.user_id)
+        token_data = await connection_service.create_connect_token(
+            session, data.provider, ctx.workspace.id, ctx.user_id
+        )
         return ConnectTokenResponse(**token_data)
-    except ValueError as e:
+    except (ValueError, ProviderNotConfiguredError) as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         raise HTTPException(
@@ -127,6 +142,8 @@ async def oauth_callback(
         raise HTTPException(
             status_code=status.HTTP_410_GONE, detail=str(e)
         )
+    except ProviderNotConfiguredError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
@@ -226,9 +243,11 @@ async def get_reconnect_token(
 
     try:
         token_data = await connection_service.create_connect_token(
-            connection.provider, ctx.user_id, item_id=item_id
+            session, connection.provider, ctx.workspace.id, ctx.user_id, item_id=item_id
         )
         return ReconnectTokenResponse(**token_data)
+    except ProviderNotConfiguredError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

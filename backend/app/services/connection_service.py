@@ -27,6 +27,7 @@ from app.models.payee import Payee, PayeeMapping
 from app.models.transaction import Transaction
 from app.models.user import User
 from app.providers import get_provider
+from app.services.integration_service import provider_for_workspace
 from app.providers.base import (
     AccountData,
     HoldingData,
@@ -272,7 +273,9 @@ async def _sync_holdings(
     # Storage errors below are intentionally not caught — they indicate
     # a schema/invariant bug we want to surface, not a hiccup to swallow.
     try:
-        provider = get_provider(connection.provider)
+        provider = await provider_for_workspace(
+            session, connection.provider, connection.workspace_id
+        )
         holdings = await provider.get_holdings(credentials)
     except Exception:  # noqa: BLE001
         logger.exception(
@@ -949,7 +952,9 @@ async def get_reauth_url(
     connection = await get_connection(session, connection_id, workspace_id)
     if not connection:
         raise ValueError("Connection not found")
-    provider = get_provider(connection.provider)
+    provider = await provider_for_workspace(
+        session, connection.provider, workspace_id
+    )
     state = await oauth_state.store_state(
         {
             "user_id": str(user_id),
@@ -991,9 +996,13 @@ async def list_provider_institutions(
 
 
 async def create_connect_token(
-    provider_name: str, user_id: uuid.UUID, item_id: str | None = None
+    session: AsyncSession,
+    provider_name: str,
+    workspace_id: uuid.UUID,
+    user_id: uuid.UUID,
+    item_id: str | None = None,
 ) -> dict:
-    provider = get_provider(provider_name)
+    provider = await provider_for_workspace(session, provider_name, workspace_id)
     token_data = await provider.create_connect_token(str(user_id), item_id=item_id)
     return {"access_token": token_data.access_token}
 
@@ -1062,7 +1071,7 @@ async def handle_oauth_callback(
     if not provider_name:
         raise ValueError("OAuth callback missing provider")
 
-    provider = get_provider(provider_name)
+    provider = await provider_for_workspace(session, provider_name, workspace_id)
     connection_data = await provider.handle_oauth_callback(code)
 
     if existing_reconnect:
@@ -1953,8 +1962,12 @@ async def sync_connection(
     # Resolve the provider before the error-handling block: an unregistered
     # provider is a server misconfiguration, and the catch-all below would
     # wrongly stamp the (healthy) connection with status="error".
+    # A workspace without its own credentials raises ProviderNotConfiguredError
+    # from the resolver, which is also left alone for the same reason.
     try:
-        provider = get_provider(connection.provider)
+        provider = await provider_for_workspace(
+            session, connection.provider, connection.workspace_id
+        )
     except ValueError as exc:
         raise ProviderNotConfiguredError(
             f"Provider '{connection.provider}' is not configured in this process. "

@@ -166,7 +166,7 @@ async def test_connecting_a_bank_imports_a_shared_counterparty_once(
     ))
     mock_provider.get_transactions = AsyncMock(side_effect=_transactions_for)
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock):
         connection = await handle_oauth_callback(
             session, test_workspace.id, test_user.id, "code",
@@ -198,7 +198,7 @@ async def test_sync_imports_a_shared_counterparty_once(
     mock_provider.get_accounts = AsyncMock(return_value=_accounts())
     mock_provider.get_transactions = AsyncMock(side_effect=_transactions_for)
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.stamp_primary_amount", new_callable=AsyncMock):
         synced, _ = await sync_connection(
             session, connection.id, test_workspace.id, test_user.id

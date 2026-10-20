@@ -63,6 +63,7 @@ import type {
   Workspace,
   WorkspaceKind,
   WorkspaceMember,
+  IntegrationStatus,
   WorkspaceRole,
   Asset,
   AssetGroup,
@@ -190,6 +191,22 @@ export const workspaces = {
   archive: async (id: string): Promise<Workspace> => {
     const { data } = await api.post(`/workspaces/${id}/archive`)
     return data
+  },
+  // Third-party credentials are per workspace. The secret is write-only: the
+  // API never returns it, only whether one is set.
+  getPluggyIntegration: async (id: string): Promise<IntegrationStatus> => {
+    const { data } = await api.get(`/workspaces/${id}/integrations/pluggy`)
+    return data
+  },
+  savePluggyIntegration: async (
+    id: string,
+    payload: { client_id: string; client_secret: string },
+  ): Promise<IntegrationStatus> => {
+    const { data } = await api.put(`/workspaces/${id}/integrations/pluggy`, payload)
+    return data
+  },
+  removePluggyIntegration: async (id: string): Promise<void> => {
+    await api.delete(`/workspaces/${id}/integrations/pluggy`)
   },
 }
 

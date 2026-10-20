@@ -1,6 +1,7 @@
 from app.models.user import User
 from app.models.passkey import UserPasskey
 from app.models.workspace import Workspace, WorkspaceMember, WorkspaceTaxId
+from app.models.workspace_integration import WorkspaceIntegration
 from app.models.category import Category
 from app.models.category_group import CategoryGroup
 from app.models.bank_connection import BankConnection
@@ -53,6 +54,7 @@ __all__ = [
     "Workspace",
     "WorkspaceMember",
     "WorkspaceTaxId",
+    "WorkspaceIntegration",
     "Category",
     "CategoryGroup",
     "BankConnection",

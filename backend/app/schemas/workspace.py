@@ -95,3 +95,19 @@ class MemberInvite(BaseModel):
 
 class MemberRoleUpdate(BaseModel):
     role: str
+
+
+class IntegrationStatusRead(BaseModel):
+    """Whether a workspace has credentials for a provider.
+
+    The secret is write-only and never appears here. `client_id` is shown
+    only to owners, who manage the integration.
+    """
+
+    configured: bool
+    client_id: Optional[str] = None
+
+
+class PluggyCredentialsUpdate(BaseModel):
+    client_id: str = Field(min_length=1, max_length=255)
+    client_secret: str = Field(min_length=1, max_length=500)

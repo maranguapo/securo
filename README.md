@@ -60,16 +60,11 @@ Open [http://localhost:3000](http://localhost:3000) and create an account. That'
 
 ## Bank Sync (Optional)
 
-Add credentials for any of the supported providers to `.env`, then restart with `docker compose up`. Configure one or both — each provider auto-registers when its credentials are present.
+Enable Banking and SimpleFIN are configured in `.env`, then restart with `docker compose up`; each auto-registers when its credentials are present. Pluggy is configured per workspace in the app instead.
 
 ### Pluggy — Brazilian banks
 
-Sign up at [pluggy.ai](https://pluggy.ai) and add:
-
-```
-PLUGGY_CLIENT_ID=your-client-id
-PLUGGY_CLIENT_SECRET=your-client-secret
-```
+Sign up at [pluggy.ai](https://pluggy.ai), copy your Client ID and Client Secret, and save them under **Workspace settings → Integrations**. Each workspace uses its own Pluggy account, so people sharing one Securo install don't share credentials. Only workspace owners can change them, and the secret is stored encrypted and never shown again.
 
 ### Enable Banking — European banks (PSD2)
 

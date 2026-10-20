@@ -19,6 +19,7 @@ from app.providers.base import (
     ConnectionData,
     ConnectTokenData,
     HoldingData,
+    ProviderNotConfiguredError,
     RefreshOutcome,
     TransactionData,
     mask_last4,
@@ -54,6 +55,9 @@ _PLUGGY_REFRESH_USER_ACTION_CODES = {
 }
 
 PLUGGY_API_BASE = "https://api.pluggy.ai"
+
+# (client_id, sha256(client_secret)) -> (api_key, expires_at).
+_API_KEY_CACHE: dict[tuple[str, str], tuple[str, float]] = {}
 
 
 def _compe_from_transfer_number(transfer_number) -> Optional[str]:
@@ -399,8 +403,13 @@ class PluggyProvider(BankProvider):
     3. Widget returns an Item ID which is used as the connection identifier
     """
 
-    _api_key: Optional[str] = None
-    _api_key_expires_at: float = 0
+    def __init__(
+        self, client_id: Optional[str] = None, client_secret: Optional[str] = None
+    ) -> None:
+        # Credentials belong to a workspace, not to the process: build the
+        # provider with `integration_service.provider_for_workspace`.
+        self._client_id = client_id or ""
+        self._client_secret = client_secret or ""
 
     @property
     def name(self) -> str:
@@ -410,28 +419,40 @@ class PluggyProvider(BankProvider):
     def flow_type(self) -> str:
         return "widget"
 
+    def _cache_key(self) -> tuple[str, str]:
+        # Keyed by the full credential pair so two workspaces never share an
+        # API key, and a rotated secret does not keep serving the old one.
+        digest = hashlib.sha256(self._client_secret.encode("utf-8")).hexdigest()
+        return (self._client_id, digest)
+
     async def _ensure_api_key(self) -> str:
         """Get a valid API key, refreshing if expired or about to expire (<5min remaining)."""
-        now = time.time()
-        if self._api_key and (self._api_key_expires_at - now) > 300:
-            return self._api_key
+        if not self._client_id or not self._client_secret:
+            raise ProviderNotConfiguredError(
+                "Pluggy credentials are not set for this workspace. "
+                "Add them in Workspace settings."
+            )
 
-        settings = get_settings()
+        now = time.time()
+        key = self._cache_key()
+        cached = _API_KEY_CACHE.get(key)
+        if cached and (cached[1] - now) > 300:
+            return cached[0]
+
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(
                 f"{PLUGGY_API_BASE}/auth",
                 json={
-                    "clientId": settings.pluggy_client_id,
-                    "clientSecret": settings.pluggy_client_secret.get_secret_value(),
+                    "clientId": self._client_id,
+                    "clientSecret": self._client_secret,
                 },
             )
             resp.raise_for_status()
             data = resp.json()
 
-        PluggyProvider._api_key = data["apiKey"]
         # Pluggy API keys last 2 hours
-        PluggyProvider._api_key_expires_at = now + 7200
-        return PluggyProvider._api_key
+        _API_KEY_CACHE[key] = (data["apiKey"], now + 7200)
+        return data["apiKey"]
 
     async def _headers(self) -> dict:
         api_key = await self._ensure_api_key()

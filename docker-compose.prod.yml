@@ -8,12 +8,12 @@ x-podman:
   in_pod: false
 
 x-backend-env: &backend-env
-  DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/securo
+  # Point this at an existing PostgreSQL to skip the bundled `db` service
+  # (see .env.example). Defaults to the bundled one.
+  DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://postgres:postgres@db:5432/securo}
   SECRET_KEY: ${SECRET_KEY:-dev-secret-change-in-production}
   DEBUG: ${DEBUG:-false}
   FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
-  PLUGGY_CLIENT_ID: ${PLUGGY_CLIENT_ID:-}
-  PLUGGY_CLIENT_SECRET: ${PLUGGY_CLIENT_SECRET:-}
   PLUGGY_OAUTH_REDIRECT_URI: ${PLUGGY_OAUTH_REDIRECT_URI:-}
   ENABLE_BANKING_APP_ID: ${ENABLE_BANKING_APP_ID:-}
   ENABLE_BANKING_PRIVATE_KEY_FILE: ${ENABLE_BANKING_PRIVATE_KEY_FILE:-/app/secrets/enable_banking_private.pem}
@@ -79,7 +79,9 @@ x-backend-base: &backend-base
   extra_hosts:
     - "host.docker.internal:host-gateway"
   depends_on:
-    db: { condition: service_healthy }
+    # required: false so the stack still starts when the `internal-db` profile
+    # is off and DATABASE_URL points at an external PostgreSQL.
+    db: { condition: service_healthy, required: false }
     redis: { condition: service_healthy }
   volumes:
     - ./secrets:/app/secrets:ro
@@ -99,6 +101,9 @@ services:
       retries: 5
 
   db:
+    # Bundled PostgreSQL, opt-in via COMPOSE_PROFILES=internal-db. Leave the
+    # profile off to use an external server through DATABASE_URL.
+    profiles: [internal-db]
     # docker.io/pgvector/pgvector:pg16 is a drop-in replacement for postgres:16
     # that bundles the pgvector extension, required by the agents
     # knowledge-base (RAG) migration introduced in v0.11.0.

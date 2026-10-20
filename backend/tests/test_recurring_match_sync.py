@@ -89,7 +89,7 @@ async def _run_sync(
     mock_rules=True,
 ):
     patches = [
-        patch("app.services.connection_service.get_provider", return_value=provider),
+        patch("app.services.connection_service.provider_for_workspace", return_value=provider),
         patch(
             "app.services.connection_service.detect_transfer_pairs",
             new_callable=AsyncMock,

@@ -121,7 +121,7 @@ async def test_shared_workspace_sync_imports_as_connection_owner(
 
     p1, p2, p3 = _patch_helpers()
     q1, q2, q3 = _patch_helpers()
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          q1, q2, q3:
         await sync_connection(session, conn.id, test_workspace.id, requester.id)
 
@@ -155,7 +155,7 @@ async def test_shared_workspace_sync_imports_as_connection_owner(
     session.add(bill)
     await session.commit()
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          p1, p2, p3:
         await sync_connection(session, conn.id, test_workspace.id, requester.id)
 
@@ -196,7 +196,7 @@ async def test_get_reauth_url(session: AsyncSession, test_user, test_workspace):
     mock_provider = AsyncMock()
     mock_provider.redirect_uri = "https://app/redirect"
     mock_provider.reauth_url = AsyncMock(return_value="https://bank/reauth")
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.oauth_state.store_state",
                new_callable=AsyncMock, return_value="state-token"):
         url = await get_reauth_url(session, conn.id, test_workspace.id, test_user.id)
@@ -253,7 +253,7 @@ async def test_sync_holdings_creates_asset(session: AsyncSession, test_user):
             purchase_price=Decimal("1000.00"), purchase_date=date(2026, 1, 1),
         ),
     ])
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider):
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider):
         await _sync_holdings(session, test_user.id, conn, {"token": "t"})
     await session.commit()
 
@@ -328,7 +328,7 @@ async def test_sync_holdings_matches_asset_across_workspace_members(
         ]
     )
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider):
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider):
         await _sync_holdings(session, test_user.id, conn, {"token": "t"})
     await session.commit()
 
@@ -411,7 +411,7 @@ async def test_sync_holdings_does_not_adopt_another_connections_wallet(
         ]
     )
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider):
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider):
         await _sync_holdings(session, test_user.id, current, {"token": "t"})
     await session.commit()
 
@@ -428,7 +428,7 @@ async def test_sync_holdings_provider_error_swallowed(session: AsyncSession, tes
     conn = await _make_connection(session, test_user.id, "FlakyBroker")
     mock_provider = AsyncMock()
     mock_provider.get_holdings = AsyncMock(side_effect=RuntimeError("500"))
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider):
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider):
         await _sync_holdings(session, test_user.id, conn, {"token": "t"})  # no raise
 
 
@@ -443,7 +443,7 @@ async def test_sync_holdings_withdrawn_new_skipped(session: AsyncSession, test_u
             current_value=Decimal("0"), is_withdrawn=True,
         ),
     ])
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider):
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider):
         await _sync_holdings(session, test_user.id, conn, {"token": "t"})
     await session.commit()
     rows = (await session.execute(
@@ -466,7 +466,7 @@ async def test_sync_holdings_archives_disappeared(session: AsyncSession, test_us
 
     mock_provider = AsyncMock()
     mock_provider.get_holdings = AsyncMock(return_value=[])  # nothing returned
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider):
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider):
         await _sync_holdings(session, test_user.id, conn, {"token": "t"})
     await session.commit()
 
@@ -486,7 +486,7 @@ async def test_sync_trigger_refresh_needs_user_action(session: AsyncSession, tes
     mock_provider.refresh_credentials = AsyncMock(return_value={"token": "t"})
     mock_provider.trigger_refresh = AsyncMock(return_value="needs_user_action")
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider):
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider):
         with pytest.raises(ProviderUserActionRequired, match="reconnect") as exc:
             await sync_connection(
                 session, conn.id, test_workspace.id, test_user.id,
@@ -515,7 +515,7 @@ async def test_sync_trigger_refresh_refreshed_then_reads(session: AsyncSession, 
     mock_provider.get_transactions = AsyncMock(return_value=[])
 
     p1, p2, p3 = _patch_helpers()
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          p1, p2, p3:
         result, _ = await sync_connection(
             session, conn.id, test_workspace.id, test_user.id,
@@ -568,7 +568,7 @@ async def test_sync_fuzzy_matches_manual_transaction(session: AsyncSession, test
     ])
 
     p1, p2, p3 = _patch_helpers()
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          p1, p2, p3:
         result, merged = await sync_connection(session, conn.id, test_workspace.id, test_user.id)
 
@@ -611,7 +611,7 @@ async def test_sync_session_expired_marks_expired(session: AsyncSession, test_us
     mock_provider = AsyncMock()
     mock_provider.refresh_credentials = AsyncMock(side_effect=SessionExpiredError("gone"))
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider):
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider):
         with pytest.raises(SessionExpiredError):
             await sync_connection(session, conn.id, test_workspace.id, test_user.id)
 
@@ -632,7 +632,7 @@ async def test_sync_user_action_required_marks_error_status(
         side_effect=ProviderUserActionRequired("link accounts", code="restricted_mode")
     )
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider):
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider):
         with pytest.raises(ProviderUserActionRequired):
             await sync_connection(session, conn_id, test_workspace.id, test_user.id)
 
@@ -693,7 +693,7 @@ async def test_oauth_callback_reconnect_updates_existing(
         accounts=[],
     ))
 
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.oauth_state.consume_state",
                new_callable=AsyncMock,
                return_value={
@@ -756,7 +756,7 @@ async def test_sync_updates_existing_pending_to_posted(
     ])
 
     p1, p2, p3 = _patch_helpers()
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          p1, p2, p3:
         await sync_connection(session, conn.id, test_workspace.id, test_user.id)
 
@@ -792,7 +792,7 @@ async def test_sync_new_transaction_with_payee_and_fx(
     ])
 
     # Don't patch stamp_primary_amount here — the fx branch must bypass it.
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider), \
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider), \
          patch("app.services.connection_service.detect_transfer_pairs", new_callable=AsyncMock), \
          patch("app.services.connection_service.apply_rules_to_transaction", new_callable=AsyncMock):
         await sync_connection(session, conn.id, test_workspace.id, test_user.id)
@@ -832,7 +832,7 @@ async def test_sync_holdings_updates_existing_asset(session: AsyncSession, test_
             current_value=Decimal("999.00"), quantity=Decimal("8"),
         ),
     ])
-    with patch("app.services.connection_service.get_provider", return_value=mock_provider):
+    with patch("app.services.connection_service.provider_for_workspace", return_value=mock_provider):
         await _sync_holdings(session, test_user.id, conn, {"token": "t"})
     await session.commit()
 

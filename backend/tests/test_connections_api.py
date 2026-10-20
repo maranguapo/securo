@@ -121,7 +121,7 @@ async def test_unlink_transfer_not_found(client: AsyncClient, auth_headers):
 async def test_create_connect_token_success(client: AsyncClient, auth_headers):
     mock_token = MagicMock()
     mock_token.access_token = "test-token-123"
-    with patch("app.services.connection_service.get_provider") as mock_gp:
+    with patch("app.services.connection_service.provider_for_workspace") as mock_gp:
         mock_gp.return_value.create_connect_token = AsyncMock(return_value=mock_token)
         resp = await client.post(
             "/api/connections/connect-token",
@@ -134,7 +134,7 @@ async def test_create_connect_token_success(client: AsyncClient, auth_headers):
 
 @pytest.mark.asyncio
 async def test_create_connect_token_value_error(client: AsyncClient, auth_headers):
-    with patch("app.services.connection_service.get_provider") as mock_gp:
+    with patch("app.services.connection_service.provider_for_workspace") as mock_gp:
         mock_gp.side_effect = ValueError("Unknown provider")
         resp = await client.post(
             "/api/connections/connect-token",
@@ -146,7 +146,7 @@ async def test_create_connect_token_value_error(client: AsyncClient, auth_header
 
 @pytest.mark.asyncio
 async def test_create_connect_token_server_error(client: AsyncClient, auth_headers):
-    with patch("app.services.connection_service.get_provider") as mock_gp:
+    with patch("app.services.connection_service.provider_for_workspace") as mock_gp:
         mock_gp.return_value.create_connect_token = AsyncMock(
             side_effect=RuntimeError("Provider down")
         )
@@ -166,7 +166,7 @@ async def test_oauth_callback_success(client: AsyncClient, auth_headers):
     conn_data.credentials = {"token": "abc"}
     conn_data.accounts = []
 
-    with patch("app.services.connection_service.get_provider") as mock_gp:
+    with patch("app.services.connection_service.provider_for_workspace") as mock_gp:
         mock_gp.return_value.handle_oauth_callback = AsyncMock(return_value=conn_data)
         resp = await client.post(
             "/api/connections/oauth/callback",
@@ -198,7 +198,7 @@ async def test_oauth_callback_token_reconnect_updates_existing(
     conn_data.credentials = {"access_url_enc": "new"}
     conn_data.accounts = []
 
-    with patch("app.services.connection_service.get_provider") as mock_gp:
+    with patch("app.services.connection_service.provider_for_workspace") as mock_gp:
         mock_gp.return_value.handle_oauth_callback = AsyncMock(return_value=conn_data)
         resp = await client.post(
             "/api/connections/oauth/callback",
@@ -221,7 +221,7 @@ async def test_oauth_callback_token_reconnect_updates_existing(
 
 @pytest.mark.asyncio
 async def test_oauth_callback_failure(client: AsyncClient, auth_headers):
-    with patch("app.services.connection_service.get_provider") as mock_gp:
+    with patch("app.services.connection_service.provider_for_workspace") as mock_gp:
         mock_gp.return_value.handle_oauth_callback = AsyncMock(
             side_effect=Exception("OAuth failed")
         )
@@ -321,7 +321,7 @@ async def test_reconnect_token_with_item_id(
 
     mock_token = MagicMock()
     mock_token.access_token = "recon-token"
-    with patch("app.services.connection_service.get_provider") as mock_gp:
+    with patch("app.services.connection_service.provider_for_workspace") as mock_gp:
         mock_gp.return_value.create_connect_token = AsyncMock(return_value=mock_token)
         resp = await client.post(
             f"/api/connections/{conn.id}/reconnect-token", headers=auth_headers,

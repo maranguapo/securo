@@ -20,14 +20,16 @@ from app.core.workspace_context import WorkspaceContext, current_workspace
 from app.models.user import User
 from app.models.workspace import Workspace, WorkspaceMember
 from app.schemas.workspace import (
+    IntegrationStatusRead,
     MemberInvite,
     MemberRead,
     MemberRoleUpdate,
+    PluggyCredentialsUpdate,
     WorkspaceCreate,
     WorkspaceRead,
     WorkspaceUpdate,
 )
-from app.services import module_service, workspace_service
+from app.services import integration_service, module_service, workspace_service
 
 router = APIRouter(prefix="/api/workspaces", tags=["workspaces"])
 
@@ -163,6 +165,62 @@ async def update_workspace(
     await session.commit()
     await session.refresh(workspace)
     return _workspace_read(workspace, member.role)
+
+
+@router.get("/{workspace_id}/integrations/pluggy", response_model=IntegrationStatusRead)
+async def get_pluggy_integration(
+    workspace_id: uuid.UUID,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    member = await workspace_service.require_membership(session, workspace_id, user.id)
+    status_ = await integration_service.get_status(session, workspace_id)
+    # The client id identifies the owner's Pluggy account; only owners see it.
+    can_see = member.role in ("owner", "manager")
+    return IntegrationStatusRead(
+        configured=status_.configured,
+        client_id=status_.client_id if can_see else None,
+    )
+
+
+@router.put("/{workspace_id}/integrations/pluggy", response_model=IntegrationStatusRead)
+async def save_pluggy_integration(
+    workspace_id: uuid.UUID,
+    body: PluggyCredentialsUpdate,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    await workspace_service.require_membership(
+        session, workspace_id, user.id, min_role="owner"
+    )
+    try:
+        saved = await integration_service.save_pluggy_credentials(
+            session, workspace_id, body.client_id, body.client_secret
+        )
+    except integration_service.InvalidCredentialsError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except integration_service.ProviderUnreachableError:
+        raise HTTPException(
+            status_code=502,
+            detail="Could not reach Pluggy to verify the credentials. Try again.",
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return IntegrationStatusRead(configured=saved.configured, client_id=saved.client_id)
+
+
+@router.delete(
+    "/{workspace_id}/integrations/pluggy", status_code=status.HTTP_204_NO_CONTENT
+)
+async def delete_pluggy_integration(
+    workspace_id: uuid.UUID,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    await workspace_service.require_membership(
+        session, workspace_id, user.id, min_role="owner"
+    )
+    await integration_service.delete_integration(session, workspace_id)
 
 
 @router.get("/{workspace_id}/members", response_model=list[MemberRead])

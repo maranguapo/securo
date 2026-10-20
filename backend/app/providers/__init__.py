@@ -79,9 +79,10 @@ def _auto_register_providers() -> None:
     from app.core.config import get_settings
     settings = get_settings()
 
-    if settings.pluggy_client_id and settings.pluggy_client_secret:
-        from app.providers.pluggy import PluggyProvider
-        register_provider("pluggy", PluggyProvider)
+    # Pluggy is always registered: its credentials are per workspace (see
+    # `integration_service`), so the registry cannot say whether it is usable.
+    from app.providers.pluggy import PluggyProvider
+    register_provider("pluggy", PluggyProvider)
 
     eb_has_key = bool(
         settings.enable_banking_private_key or settings.enable_banking_private_key_file

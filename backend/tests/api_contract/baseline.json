@@ -41,6 +41,7 @@
   "DELETE /api/transactions/{transaction_id}": 401,
   "DELETE /api/transactions/{transaction_id}/attachments/{attachment_id}": 401,
   "DELETE /api/users/{id}": 401,
+  "DELETE /api/workspaces/{workspace_id}/integrations/pluggy": 401,
   "DELETE /api/workspaces/{workspace_id}/members/{member_user_id}": 401,
   "GET /api/accounts": 401,
   "GET /api/accounts/{account_id}": 401,
@@ -90,7 +91,7 @@
   "GET /api/category-groups": 401,
   "GET /api/collections": 401,
   "GET /api/connections": 401,
-  "GET /api/connections/providers": 200,
+  "GET /api/connections/providers": 401,
   "GET /api/connections/{provider}/institutions": 401,
   "GET /api/currencies": 200,
   "GET /api/dashboard/balance-history": 401,
@@ -170,6 +171,7 @@
   "GET /api/users/{id}": 401,
   "GET /api/workspaces": 401,
   "GET /api/workspaces/current": 401,
+  "GET /api/workspaces/{workspace_id}/integrations/pluggy": 401,
   "GET /api/workspaces/{workspace_id}/members": 401,
   "GET /api/workspaces/{workspace_id}/stats": 401,
   "PATCH /api/accounts/{account_id}": 401,
@@ -315,7 +317,8 @@
   "POST /api/workspaces/{workspace_id}/archive": 401,
   "POST /api/workspaces/{workspace_id}/members": 401,
   "PUT /api/agents/{agent_id}/tools": 401,
-  "PUT /api/reconciliation/rules/{node}/order": 401
+  "PUT /api/reconciliation/rules/{node}/order": 401,
+  "PUT /api/workspaces/{workspace_id}/integrations/pluggy": 401
  },
  "empty": {
   "PATCH /api/admin/settings/{key}": 422,
@@ -383,7 +386,8 @@
   "POST /api/transactions/{transaction_id}/create-counterpart": 422,
   "POST /api/workspaces": 422,
   "POST /api/workspaces/{workspace_id}/members": 422,
-  "PUT /api/reconciliation/rules/{node}/order": 422
+  "PUT /api/reconciliation/rules/{node}/order": 422,
+  "PUT /api/workspaces/{workspace_id}/integrations/pluggy": 422
  },
  "ok": {
   "DELETE /api/accounts/{account_id}": 204,
@@ -427,6 +431,7 @@
   "DELETE /api/transactions/{transaction_id}": 204,
   "DELETE /api/transactions/{transaction_id}/attachments/{attachment_id}": 204,
   "DELETE /api/users/{id}": 403,
+  "DELETE /api/workspaces/{workspace_id}/integrations/pluggy": 204,
   "DELETE /api/workspaces/{workspace_id}/members/{member_user_id}": 400,
   "GET /api/accounts": 200,
   "GET /api/accounts/{account_id}": 200,
@@ -554,6 +559,7 @@
   "GET /api/users/{id}": 403,
   "GET /api/workspaces": 200,
   "GET /api/workspaces/current": 200,
+  "GET /api/workspaces/{workspace_id}/integrations/pluggy": 200,
   "GET /api/workspaces/{workspace_id}/members": 200,
   "GET /api/workspaces/{workspace_id}/stats": 200,
   "PATCH /api/accounts/{account_id}": 200,
@@ -699,7 +705,8 @@
   "POST /api/workspaces/{workspace_id}/archive": 400,
   "POST /api/workspaces/{workspace_id}/members": 400,
   "PUT /api/agents/{agent_id}/tools": 200,
-  "PUT /api/reconciliation/rules/{node}/order": 400
+  "PUT /api/reconciliation/rules/{node}/order": 400,
+  "PUT /api/workspaces/{workspace_id}/integrations/pluggy": 422
  },
  "unknown_id": {
   "DELETE /api/accounts/{account_id}": 404,
@@ -741,6 +748,7 @@
   "DELETE /api/transactions/{transaction_id}": 404,
   "DELETE /api/transactions/{transaction_id}/attachments/{attachment_id}": 404,
   "DELETE /api/users/{id}": 403,
+  "DELETE /api/workspaces/{workspace_id}/integrations/pluggy": 404,
   "DELETE /api/workspaces/{workspace_id}/members/{member_user_id}": 404,
   "GET /api/accounts/{account_id}": 404,
   "GET /api/accounts/{account_id}/balance-history": 404,
@@ -784,6 +792,7 @@
   "GET /api/transactions/{transaction_id}/transfer-candidates": 404,
   "GET /api/transactions/{transaction_id}/transfer-pair": 404,
   "GET /api/users/{id}": 403,
+  "GET /api/workspaces/{workspace_id}/integrations/pluggy": 404,
   "GET /api/workspaces/{workspace_id}/members": 404,
   "GET /api/workspaces/{workspace_id}/stats": 404,
   "PATCH /api/accounts/{account_id}": 404,
@@ -858,7 +867,8 @@
   "POST /api/transactions/{transaction_id}/create-counterpart": 422,
   "POST /api/workspaces/{workspace_id}/archive": 404,
   "POST /api/workspaces/{workspace_id}/members": 404,
-  "PUT /api/agents/{agent_id}/tools": 404
+  "PUT /api/agents/{agent_id}/tools": 404,
+  "PUT /api/workspaces/{workspace_id}/integrations/pluggy": 422
  },
  "viewer": {
   "DELETE /api/accounts/{account_id}": 403,
@@ -900,6 +910,7 @@
   "DELETE /api/transactions/{transaction_id}": 403,
   "DELETE /api/transactions/{transaction_id}/attachments/{attachment_id}": 403,
   "DELETE /api/users/{id}": 403,
+  "DELETE /api/workspaces/{workspace_id}/integrations/pluggy": 403,
   "DELETE /api/workspaces/{workspace_id}/members/{member_user_id}": 403,
   "PATCH /api/accounts/{account_id}": 403,
   "PATCH /api/agents/connections/{conn_id}": 404,
@@ -1041,6 +1052,7 @@
   "POST /api/workspaces/{workspace_id}/archive": 403,
   "POST /api/workspaces/{workspace_id}/members": 403,
   "PUT /api/agents/{agent_id}/tools": 403,
-  "PUT /api/reconciliation/rules/{node}/order": 403
+  "PUT /api/reconciliation/rules/{node}/order": 403,
+  "PUT /api/workspaces/{workspace_id}/integrations/pluggy": 422
  }
 }

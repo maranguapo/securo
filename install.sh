@@ -306,8 +306,7 @@ generate_env() {
 
   cat > .env <<EOF
 SECRET_KEY=$SECRET_KEY
-PLUGGY_CLIENT_ID=
-PLUGGY_CLIENT_SECRET=
+COMPOSE_PROFILES=internal-db
 EOF
 
   success ".env file created with a random SECRET_KEY"
