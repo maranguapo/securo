@@ -8,6 +8,8 @@ const api = vi.hoisted(() => ({
   getPluggyIntegration: vi.fn(),
   savePluggyIntegration: vi.fn(),
   removePluggyIntegration: vi.fn(),
+  getTelegramIntegration: vi.fn(),
+  listTelegramChats: vi.fn(),
 }))
 
 vi.mock('@/lib/api', () => ({ workspaces: api }))
@@ -16,6 +18,8 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 beforeEach(() => {
   vi.clearAllMocks()
   api.getPluggyIntegration.mockResolvedValue({ configured: false, client_id: null })
+  api.getTelegramIntegration.mockResolvedValue({ configured: false, client_id: null })
+  api.listTelegramChats.mockResolvedValue([])
 })
 
 describe('WorkspaceIntegrations', () => {

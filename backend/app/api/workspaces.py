@@ -6,6 +6,7 @@ creates the additional ones and is the only place `kind` is ever set;
 it.
 """
 import uuid
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi_users import schemas as fu_schemas
@@ -28,6 +29,9 @@ from app.schemas.workspace import (
     MemberRead,
     MemberRoleUpdate,
     PluggyCredentialsUpdate,
+    TelegramChatRead,
+    TelegramLinkRead,
+    TelegramTokenUpdate,
     WorkspaceCreate,
     WorkspaceRead,
     WorkspaceUpdate,
@@ -37,6 +41,7 @@ from app.services import (
     ai_categorization_service,
     integration_service,
     module_service,
+    telegram_service,
     workspace_service,
 )
 
@@ -230,6 +235,135 @@ async def delete_pluggy_integration(
         session, workspace_id, user.id, min_role="owner"
     )
     await integration_service.delete_integration(session, workspace_id)
+
+
+@router.get("/{workspace_id}/integrations/telegram", response_model=IntegrationStatusRead)
+async def get_telegram_integration(
+    workspace_id: uuid.UUID,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    await workspace_service.require_membership(session, workspace_id, user.id)
+    status_ = await integration_service.get_status(
+        session, workspace_id, integration_service.TELEGRAM
+    )
+    # Unlike a Pluggy client id, the bot's @username is public, and every
+    # member needs it to open the chat that links their account.
+    return IntegrationStatusRead(configured=status_.configured, client_id=status_.client_id)
+
+
+@router.put("/{workspace_id}/integrations/telegram", response_model=IntegrationStatusRead)
+async def save_telegram_integration(
+    workspace_id: uuid.UUID,
+    body: TelegramTokenUpdate,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    await workspace_service.require_membership(
+        session, workspace_id, user.id, min_role="owner"
+    )
+    try:
+        saved = await integration_service.save_telegram_token(session, workspace_id, body.token)
+    except integration_service.InvalidCredentialsError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except integration_service.ProviderUnreachableError:
+        raise HTTPException(
+            status_code=502,
+            detail="Could not reach Telegram to verify the bot token. Try again.",
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return IntegrationStatusRead(configured=saved.configured, client_id=saved.client_id)
+
+
+@router.delete(
+    "/{workspace_id}/integrations/telegram", status_code=status.HTTP_204_NO_CONTENT
+)
+async def delete_telegram_integration(
+    workspace_id: uuid.UUID,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    await workspace_service.require_membership(
+        session, workspace_id, user.id, min_role="owner"
+    )
+    # Without the bot, the linked chats have nothing to receive from.
+    for link, _ in await telegram_service.list_links(session, workspace_id):
+        await session.delete(link)
+    await session.commit()
+    await integration_service.delete_integration(
+        session, workspace_id, integration_service.TELEGRAM
+    )
+
+
+@router.post("/{workspace_id}/integrations/telegram/link", response_model=TelegramLinkRead)
+async def create_telegram_link(
+    workspace_id: uuid.UUID,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """A one-time link that opens the bot and connects the caller's chat."""
+    await workspace_service.require_membership(
+        session, workspace_id, user.id, min_role="editor"
+    )
+    bot = await integration_service.get_telegram_bot(session, workspace_id)
+    if bot is None:
+        raise HTTPException(
+            status_code=400, detail="This workspace has no Telegram bot configured."
+        )
+    username, _ = bot
+    code = await telegram_service.create_link_code(workspace_id, user.id)
+    return TelegramLinkRead(
+        url=f"https://t.me/{username}?start={code}",
+        expires_at=datetime.now(timezone.utc)
+        + timedelta(seconds=telegram_service.LINK_TTL_SECONDS),
+    )
+
+
+@router.get("/{workspace_id}/integrations/telegram/chats", response_model=list[TelegramChatRead])
+async def list_telegram_chats(
+    workspace_id: uuid.UUID,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    member = await workspace_service.require_membership(session, workspace_id, user.id)
+    is_owner = member.role in ("owner", "manager")
+    out: list[TelegramChatRead] = []
+    for link, email in await telegram_service.list_links(session, workspace_id):
+        mine = link.user_id == user.id
+        if not (is_owner or mine):
+            continue
+        out.append(
+            TelegramChatRead(
+                id=link.id,
+                user_id=link.user_id,
+                email=email if is_owner else None,
+                telegram_username=link.telegram_username,
+                is_mine=mine,
+                created_at=link.created_at,
+            )
+        )
+    return out
+
+
+@router.delete(
+    "/{workspace_id}/integrations/telegram/chats/{link_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_telegram_chat(
+    workspace_id: uuid.UUID,
+    link_id: uuid.UUID,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    member = await workspace_service.require_membership(session, workspace_id, user.id)
+    link = await telegram_service.get_link(session, workspace_id, link_id)
+    if link is None:
+        raise HTTPException(status_code=404, detail="Chat not found")
+    # Owners can disconnect anyone; everyone else only their own chat.
+    if link.user_id != user.id and member.role not in ("owner", "manager"):
+        raise HTTPException(status_code=403, detail="Insufficient role")
+    await telegram_service.delete_link(session, link)
 
 
 @router.get("/{workspace_id}/automation", response_model=AutomationSettingsRead)

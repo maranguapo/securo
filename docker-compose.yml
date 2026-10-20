@@ -176,6 +176,15 @@ services:
     ports:
       - "${AGENTS_MCP_EXTERNAL_HOST_PORT:-127.0.0.1:8765}:8765"
 
+  # Optional: Telegram bots. Each workspace saves its own bot token in
+  # Workspace settings > Integrations; this process long-polls every bot that
+  # is configured (no public URL or webhook needed). Enable it with
+  # COMPOSE_PROFILES=telegram (comma-separate with other profiles).
+  telegram-bot:
+    <<: *backend-base
+    profiles: [telegram]
+    command: python -m app.telegram.runner
+
 volumes:
   pgdata:
   attachments:

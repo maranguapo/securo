@@ -132,3 +132,22 @@ class AutomationSettingsUpdate(BaseModel):
 
 class AutomationRunResult(BaseModel):
     categorized: int
+
+
+class TelegramTokenUpdate(BaseModel):
+    token: str = Field(min_length=1, max_length=200)
+
+
+class TelegramLinkRead(BaseModel):
+    url: str
+    expires_at: datetime
+
+
+class TelegramChatRead(BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    # Only owners see whose chat it is; everyone else sees their own.
+    email: Optional[str] = None
+    telegram_username: Optional[str] = None
+    is_mine: bool
+    created_at: datetime

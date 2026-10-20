@@ -66,6 +66,8 @@ import type {
   IntegrationStatus,
   AutomationSettings,
   AutomationSettingsPayload,
+  TelegramChat,
+  TelegramLinkInfo,
   WorkspaceRole,
   Asset,
   AssetGroup,
@@ -209,6 +211,28 @@ export const workspaces = {
   },
   removePluggyIntegration: async (id: string): Promise<void> => {
     await api.delete(`/workspaces/${id}/integrations/pluggy`)
+  },
+  getTelegramIntegration: async (id: string): Promise<IntegrationStatus> => {
+    const { data } = await api.get(`/workspaces/${id}/integrations/telegram`)
+    return data
+  },
+  saveTelegramIntegration: async (id: string, token: string): Promise<IntegrationStatus> => {
+    const { data } = await api.put(`/workspaces/${id}/integrations/telegram`, { token })
+    return data
+  },
+  removeTelegramIntegration: async (id: string): Promise<void> => {
+    await api.delete(`/workspaces/${id}/integrations/telegram`)
+  },
+  createTelegramLink: async (id: string): Promise<TelegramLinkInfo> => {
+    const { data } = await api.post(`/workspaces/${id}/integrations/telegram/link`)
+    return data
+  },
+  listTelegramChats: async (id: string): Promise<TelegramChat[]> => {
+    const { data } = await api.get(`/workspaces/${id}/integrations/telegram/chats`)
+    return data
+  },
+  removeTelegramChat: async (id: string, chatId: string): Promise<void> => {
+    await api.delete(`/workspaces/${id}/integrations/telegram/chats/${chatId}`)
   },
   getAutomation: async (id: string): Promise<AutomationSettings> => {
     const { data } = await api.get(`/workspaces/${id}/automation`)

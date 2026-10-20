@@ -17,8 +17,10 @@ from app.models.workspace_integration import WorkspaceIntegration
 from app.providers import get_provider
 from app.providers.base import BankProvider, ProviderNotConfiguredError
 from app.providers.pluggy import PLUGGY_API_BASE, PluggyProvider
+from app.telegram.client import TelegramClient, TelegramError
 
 PLUGGY = "pluggy"
+TELEGRAM = "telegram"
 
 
 class InvalidCredentialsError(ValueError):
@@ -135,3 +137,53 @@ async def provider_for_workspace(
             "Add them in Workspace settings."
         )
     return PluggyProvider(client_id=row.client_id, client_secret=secret)
+
+
+# --- Telegram -------------------------------------------------------------
+# One bot per workspace. The row reuses the same table as Pluggy: `client_id`
+# holds the bot's @username (public) and the encrypted secret holds the token.
+
+
+async def save_telegram_token(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    token: str,
+    *,
+    verify: bool = True,
+) -> IntegrationStatus:
+    token = token.strip()
+    if not token:
+        raise ValueError("The bot token is required")
+    username = ""
+    if verify:
+        try:
+            me = await TelegramClient(token).get_me()
+        except TelegramError as exc:
+            if exc.code is None:
+                raise ProviderUnreachableError(str(exc)) from exc
+            raise InvalidCredentialsError("Telegram rejected this bot token") from exc
+        username = str(me.get("username") or "")
+        if not username:
+            raise InvalidCredentialsError("This token does not belong to a bot")
+
+    ciphertext = encrypt(token)
+    assert ciphertext is not None  # token is non-empty
+    row = await _get_row(session, workspace_id, TELEGRAM)
+    if row is None:
+        row = WorkspaceIntegration(workspace_id=workspace_id, provider=TELEGRAM)
+        session.add(row)
+    row.client_id = username
+    row.client_secret_encrypted = ciphertext
+    await session.commit()
+    return IntegrationStatus(configured=True, client_id=username)
+
+
+async def get_telegram_bot(
+    session: AsyncSession, workspace_id: uuid.UUID
+) -> Optional[tuple[str, str]]:
+    """(username, token) of the workspace's bot, or None when not usable."""
+    row = await _get_row(session, workspace_id, TELEGRAM)
+    token = decrypt(row.client_secret_encrypted) if row else None
+    if row is None or not token:
+        return None
+    return row.client_id, token

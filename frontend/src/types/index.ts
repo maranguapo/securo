@@ -54,6 +54,22 @@ export interface IntegrationStatus {
   client_id: string | null
 }
 
+export interface TelegramLinkInfo {
+  url: string
+  expires_at: string
+}
+
+// A Telegram chat that receives the workspace's messages. `email` is only sent
+// to workspace owners.
+export interface TelegramChat {
+  id: string
+  user_id: string
+  email: string | null
+  telegram_username: string | null
+  is_mine: boolean
+  created_at: string
+}
+
 // How a workspace uses an LLM to categorize its transactions.
 export interface AutomationSettings {
   ai_categorization_enabled: boolean

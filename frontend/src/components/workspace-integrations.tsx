@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DeleteConfirmationDialog } from '@/components/delete-confirmation-dialog'
+import { TelegramIntegration } from '@/components/telegram-integration'
 
 interface WorkspaceIntegrationsProps {
   workspaceId: string
@@ -168,6 +169,8 @@ export function WorkspaceIntegrations({ workspaceId, canManage }: WorkspaceInteg
           <p className="text-sm text-muted-foreground">{t('workspace.integrationsOwnersOnly')}</p>
         )}
       </div>
+
+      <TelegramIntegration workspaceId={workspaceId} canManage={canManage} />
 
       <DeleteConfirmationDialog
         open={removeOpen}
