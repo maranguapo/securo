@@ -45,9 +45,15 @@ aponta para a versão, não faz commit.
    *Packages* → `securo-backend` e `securo-frontend` → *Package settings* → *Change
    visibility* → **Public**. (Alternativa: manter privado e cadastrar o GHCR em
    Portainer → Registries com um token `read:packages`.)
-4. **Tirar as variáveis de imagem do Portainer.** Em Portainer → Stacks → securo →
-   Environment variables, apague `BACKEND_IMAGE` e `FRONTEND_IMAGE` (se existirem). Elas
-   têm precedência sobre o `stack.yaml` e fariam o Portainer ignorar a versão nova.
+4. **Tirar as variáveis de imagem do Portainer, mas só no fim, e nesta ordem.**
+   `BACKEND_IMAGE` e `FRONTEND_IMAGE` (se existirem em Portainer → Stacks → securo →
+   Environment variables) têm precedência sobre o `stack.yaml`, então enquanto existirem o
+   Portainer ignora as versões novas. Mas **não as apague antes** de: (a) a primeira release ter
+   sido publicada e o job *deploy* ter gravado a versão no `stack.yaml`, e (b) os pacotes do
+   GHCR estarem públicos (passo 3). Antes disso, o `stack.yaml` ainda aponta para as imagens
+   do projeto original (`securo-finance`), e um *Update the stack* sem as variáveis subiria o
+   backend errado contra o seu banco (que já tem migrations que ele desconhece). Só então:
+   apague as duas variáveis e clique em *Update the stack*.
 5. **Desativar o que veio do projeto original e não serve ao fork**, para não gerar execuções
    vermelhas todo dia:
    `gh workflow disable downloads-badge.yml -R maranguapo/securo`
