@@ -250,8 +250,14 @@ export const workspaces = {
     const { data } = await api.put(`/workspaces/${id}/automation`, payload)
     return data
   },
-  runAutomation: async (id: string): Promise<{ categorized: number; digest_sent: number }> => {
-    const { data } = await api.post(`/workspaces/${id}/automation/run-now`)
+  // `sendDigest: false` categorizes without also sending the Telegram summary.
+  runAutomation: async (
+    id: string,
+    options: { sendDigest?: boolean } = {},
+  ): Promise<{ categorized: number; digest_sent: number }> => {
+    const { data } = await api.post(`/workspaces/${id}/automation/run-now`, null, {
+      params: { send_digest: options.sendDigest ?? true },
+    })
     return data
   },
 }

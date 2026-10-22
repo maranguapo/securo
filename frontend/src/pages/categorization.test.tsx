@@ -565,7 +565,10 @@ describe('running the categorization', () => {
 
     await user.click(await screen.findByTestId('run-now'))
 
-    await waitFor(() => expect(api.runAutomation).toHaveBeenCalledWith('ws-1'))
+    // From this screen the run must not also buzz a phone with the Telegram summary.
+    await waitFor(() =>
+      expect(api.runAutomation).toHaveBeenCalledWith('ws-1', { sendDigest: false }),
+    )
   })
 
   it('cannot be run while the provider is limiting requests, or while the feature is off', async () => {

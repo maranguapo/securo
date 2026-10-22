@@ -8,7 +8,7 @@ it.
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi_users import schemas as fu_schemas
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -428,10 +428,16 @@ async def save_automation_settings(
 @router.post("/{workspace_id}/automation/run-now", response_model=AutomationRunResult)
 async def run_automation_now(
     workspace_id: uuid.UUID,
+    send_digest: bool = Query(True),
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
-    """Categorize now instead of waiting for the next scheduled run."""
+    """Categorize now instead of waiting for the next scheduled run.
+
+    Also sends the pending Telegram summary, unless `send_digest=false`: the
+    review screen runs the categorization to look at the result on screen, and
+    should not buzz a phone as a side effect.
+    """
     await workspace_service.require_membership(
         session, workspace_id, user.id, min_role="owner"
     )
@@ -455,7 +461,7 @@ async def run_automation_now(
         raise limited
     sent = 0
     settings = await ai_categorization_service.get_settings(session, workspace_id)
-    if settings is not None and settings.digest_enabled:
+    if send_digest and settings is not None and settings.digest_enabled:
         # A manual run sends what is pending without using up the day's
         # scheduled digest: that one still goes out, with whatever is new.
         sent = await digest_service.send_digest(session, workspace_id)

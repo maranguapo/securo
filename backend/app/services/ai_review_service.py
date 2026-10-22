@@ -227,6 +227,8 @@ async def summary(session: AsyncSession, workspace_id: uuid.UUID) -> dict[str, A
         )
         or 0
     )
+    # What the next digest would still list one by one: only what needs a
+    # decision. What the model applied goes in a single line.
     on_its_way = int(
         await session.scalar(
             select(func.count())
@@ -234,7 +236,7 @@ async def summary(session: AsyncSession, workspace_id: uuid.UUID) -> dict[str, A
             .where(
                 *visible,
                 AiCategorization.notified_at.is_(None),
-                AiCategorization.status.in_(("applied", "low_confidence")),
+                AiCategorization.status == "low_confidence",
             )
         )
         or 0

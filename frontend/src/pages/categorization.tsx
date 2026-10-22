@@ -199,7 +199,8 @@ export default function CategorizationPage() {
   const runNow = useMutation({
     mutationFn: () => {
       if (!current) throw new Error('No workspace')
-      return workspacesApi.runAutomation(current.id)
+      // Looking at the result on screen must not also buzz a phone.
+      return workspacesApi.runAutomation(current.id, { sendDigest: false })
     },
     onSuccess: ({ categorized, digest_sent }) => {
       toast.success(t('workspace.automationRunDone', { count: categorized }))

@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.models.connection import LlmConnection
 from app.agents.services.crypto import encrypt
 from app.models.ai_categorization import AiCategorization
+from app.models.transaction import Transaction
 from app.models.user import User
 from app.models.workspace_ai_settings import WorkspaceAiSettings
 from app.models.workspace_integration import WorkspaceIntegration
@@ -83,6 +84,17 @@ async def _ledger(session, workspace, tx, category, status="applied", confidence
     session.add(row)
     await session.commit()
     return row
+
+
+async def _ready_with_unsure_answered(session, user, workspace, categories, transactions):
+    """Like `_ready`, but the unsure one was already answered, so only what the
+    model applied with confidence is left to report."""
+    txs = await _ready(session, user, workspace, categories, transactions)
+    unsure = [r for r in (await session.execute(select(AiCategorization))).scalars() if r.status == "low_confidence"][0]
+    txs["PIX RECEBIDO"].category_id = categories[2].id
+    unsure.status = "changed"
+    await session.commit()
+    return txs, None, unsure
 
 
 async def _enable_digest(session, user, workspace, *, tz=None):
@@ -255,7 +267,7 @@ async def _ready(session, user, workspace, categories, transactions, *, chat_id=
 
 
 @pytest.mark.asyncio
-async def test_the_digest_sends_a_header_then_one_message_per_transaction(
+async def test_only_what_needs_a_decision_gets_its_own_message(
     session: AsyncSession, test_user, test_workspace, test_categories, test_transactions
 ):
     await _ready(session, test_user, test_workspace, test_categories, test_transactions)
@@ -263,13 +275,51 @@ async def test_the_digest_sends_a_header_then_one_message_per_transaction(
 
     sent = await digest_service.send_digest(session, test_workspace.id, client=bot)
 
+    # One the model was unsure about, one it applied with confidence.
     assert sent == 2
-    assert [chat for chat, _, _ in bot.sent] == [555, 555, 555]
+    assert [chat for chat, _, _ in bot.sent] == [555, 555]
     header = bot.sent[0]
-    assert "2 transação" in header[1]  # the test user reads Portuguese
-    assert _buttons(header[2]) == ["A"]
-    assert any("NETFLIX" in text for _, text, _ in bot.sent)
+    assert "1 para escolher" in header[1]  # the test user reads Portuguese
+    assert "1 categorizada(s) automaticamente" in header[1]
+    assert _buttons(header[2]) == ["A"]  # confirm everything the model applied
     assert any("PIX RECEBIDO" in text for _, text, _ in bot.sent)
+    # What the model applied is a line in the header, not a message to answer.
+    assert not any("NETFLIX" in text for _, text, _ in bot.sent)
+
+
+@pytest.mark.asyncio
+async def test_a_day_with_only_automatic_categorizations_is_one_message(
+    session: AsyncSession, test_user, test_workspace, test_categories, test_transactions
+):
+    txs, _, unsure = await _ready_with_unsure_answered(
+        session, test_user, test_workspace, test_categories, test_transactions
+    )
+    bot = RecordingBot()
+
+    sent = await digest_service.send_digest(session, test_workspace.id, client=bot)
+
+    assert sent == 1 and len(bot.sent) == 1
+    text, keyboard = bot.sent[0][1], bot.sent[0][2]
+    assert "para escolher" not in text and "1 categorizada(s) automaticamente" in text
+    assert _buttons(keyboard) == ["A"]
+
+
+@pytest.mark.asyncio
+async def test_a_day_with_nothing_automatic_has_no_confirm_all_button(
+    session: AsyncSession, test_user, test_workspace, test_categories, test_transactions
+):
+    await _ready(session, test_user, test_workspace, test_categories, test_transactions)
+    rows = (await session.execute(select(AiCategorization))).scalars().all()
+    for row in rows:
+        row.status = "low_confidence"
+    await session.commit()
+    bot = RecordingBot()
+
+    await digest_service.send_digest(session, test_workspace.id, client=bot)
+
+    header = bot.sent[0]
+    assert "categorizada(s) automaticamente" not in header[1]
+    assert header[2] is None
 
 
 @pytest.mark.asyncio
@@ -283,7 +333,7 @@ async def test_each_transaction_goes_out_once(
     again = await digest_service.send_digest(session, test_workspace.id, client=bot)
 
     assert again == 0
-    assert len(bot.sent) == 3
+    assert len(bot.sent) == 2
     rows = (await session.execute(select(AiCategorization))).scalars().all()
     assert all(r.notified_at is not None for r in rows)
 
@@ -392,6 +442,17 @@ async def test_the_overflow_waits_for_the_next_digest(
     session: AsyncSession, test_user, test_workspace, test_categories, test_transactions
 ):
     await _ready(session, test_user, test_workspace, test_categories, test_transactions)
+    # Two that need a decision, so one of them can wait.
+    netflix = (
+        await session.execute(
+            select(AiCategorization).where(AiCategorization.status == "applied")
+        )
+    ).scalar_one()
+    tx = await session.get(Transaction, netflix.transaction_id)
+    assert tx is not None
+    tx.category_id = None
+    netflix.status = "low_confidence"
+    await session.commit()
     bot = RecordingBot()
 
     with patch.object(digest_service, "MAX_ITEMS", 1):

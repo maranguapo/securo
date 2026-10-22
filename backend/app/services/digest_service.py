@@ -37,8 +37,9 @@ _SYMBOLS = {"BRL": "R$", "USD": "$", "EUR": "€", "GBP": "£"}
 
 _TEXT = {
     "en": {
-        "header": "🗂 Daily summary — {n} transaction(s) to review",
-        "header_hint": "Tap ✅ to confirm or ✏️ to change. If you do nothing, the suggested category stays.",
+        "header": "🗂 Daily summary — {n} to choose",
+        "header_hint": "The AI wasn't sure about these. Tap ✏️ Choose, or answer them on the Categorization screen.",
+        "header_auto": "✅ {m} categorized automatically by the AI. They keep their category unless you change it; review them on the Categorization screen or confirm them all here.",
         "confirm_all": "✅ Confirm all",
         "confirm": "✅ Confirm",
         "change": "✏️ Change",
@@ -62,8 +63,9 @@ _TEXT = {
         "ai": "AI",
     },
     "pt": {
-        "header": "🗂 Resumo diário — {n} transação(ões) para revisar",
-        "header_hint": "Toque em ✅ para confirmar ou ✏️ para alterar. Se não fizer nada, a categoria sugerida permanece.",
+        "header": "🗂 Resumo diário — {n} para escolher",
+        "header_hint": "A IA não teve certeza sobre estas. Toque em ✏️ Escolher, ou responda na tela Categorização.",
+        "header_auto": "✅ {m} categorizada(s) automaticamente pela IA. Mantêm a categoria, a menos que você altere; confira na tela Categorização ou confirme todas aqui.",
         "confirm_all": "✅ Confirmar todas",
         "confirm": "✅ Confirmar",
         "change": "✏️ Alterar",
@@ -328,8 +330,9 @@ async def send_digest(
     now: Optional[datetime] = None,
     local_date: Optional[date] = None,
 ) -> int:
-    """Send the pending evaluations to every linked chat. Returns how many
-    transactions were included (0 when there was nothing to send).
+    """Send the pending evaluations to every linked chat: one message for each
+    that needs a decision, and one line for what the model applied. Returns how
+    many ledger items were covered (0 when there was nothing to send).
 
     The ledger rows are marked as sent only if at least one chat received
     them, so a Telegram outage or an unlinked workspace loses nothing: the
@@ -354,25 +357,31 @@ async def send_digest(
         return 0
 
     items = await _pending_items(session, workspace_id)
-    sendable = items[:MAX_ITEMS]
-    overflow = len(items) - len(sendable)
+    # Only what needs a decision gets a message of its own. What the model applied
+    # with confidence is one line with a "confirm all" button: answering each
+    # one in a chat is the noise the Categorization screen exists to avoid.
+    needs_choice = [i for i in items if i.row.status == "low_confidence"]
+    automatic = [i for i in items if i.row.status == "applied"]
+    sendable = needs_choice[:MAX_ITEMS]
+    overflow = len(needs_choice) - len(sendable)
     delivered = False
 
-    if sendable:
+    if sendable or automatic:
         for chat_id, lang in recipients:
             try:
+                lines = []
+                if needs_choice:
+                    lines += [t(lang, "header", n=len(needs_choice)), t(lang, "header_hint")]
+                if automatic:
+                    lines.append(t(lang, "header_auto", m=len(automatic)))
                 header_keyboard = None
-                if any(i.category_name for i in sendable):
+                if automatic:
                     header_keyboard = {
                         "inline_keyboard": [
                             [{"text": t(lang, "confirm_all"), "callback_data": "A"}]
                         ]
                     }
-                await client.send_message(
-                    chat_id,
-                    f"{t(lang, 'header', n=len(items))}\n{t(lang, 'header_hint')}",
-                    reply_markup=header_keyboard,
-                )
+                await client.send_message(chat_id, "\n".join(lines), reply_markup=header_keyboard)
                 for item in sendable:
                     text, keyboard = render_item(item, lang)
                     await client.send_message(chat_id, text, reply_markup=keyboard)
@@ -383,16 +392,19 @@ async def send_digest(
             except TelegramError as exc:
                 logger.warning("Digest to chat failed for workspace %s: %s", workspace_id, exc)
 
+    included = sendable + automatic
     if delivered:
-        for item in sendable:
+        # The automatic ones are marked too, so tomorrow's line counts only what
+        # is new; they stay "applied" on the screen until someone confirms them.
+        for item in included:
             item.row.notified_at = now
     settings = await session.get(WorkspaceAiSettings, workspace_id)
     # An empty day still counts as the day's digest, so it is not retried every
     # five minutes until midnight. A day where every chat failed is retried.
-    if settings is not None and (delivered or not sendable) and local_date is not None:
+    if settings is not None and (delivered or not included) and local_date is not None:
         settings.last_digest_on = local_date
     await session.commit()
-    return len(sendable) if delivered else 0
+    return len(included) if delivered else 0
 
 
 # --- answering ----------------------------------------------------------------

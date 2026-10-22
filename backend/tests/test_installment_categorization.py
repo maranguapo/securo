@@ -312,13 +312,13 @@ async def test_other_purchases_and_plain_transactions_are_still_asked_about_sepa
 # ---------------------------------------------------------------------------
 # Reviewing
 # ---------------------------------------------------------------------------
-async def _digest_setup(session, user, workspace, account, categories, use_provider):
+async def _digest_setup(session, user, workspace, account, categories, use_provider, confidence=0.9):
     from app.services import telegram_service
     from tests.test_digest import _enable_digest
 
     await _enable_digest(session, user, workspace)
     parcels = await _parcels(session, user, account)
-    with use_provider(FakeProvider({"AMAZON": ("Transporte", 0.9)})):
+    with use_provider(FakeProvider({"AMAZON": ("Transporte", confidence)})):
         await svc.categorize_pending(session, workspace.id)
     await telegram_service.link_chat(session, workspace.id, user.id, 555, None)
     return parcels
@@ -328,7 +328,10 @@ async def _digest_setup(session, user, workspace, account, categories, use_provi
 async def test_the_digest_asks_about_the_purchase_once_and_says_how_many_parcels_it_covers(
     session: AsyncSession, test_user, test_workspace, test_account, test_categories, use_provider
 ):
-    await _digest_setup(session, test_user, test_workspace, test_account, test_categories, use_provider)
+    # The model was unsure, so the purchase needs a decision.
+    await _digest_setup(
+        session, test_user, test_workspace, test_account, test_categories, use_provider, confidence=0.2
+    )
     bot = RecordingBot()
 
     sent = await digest_service.send_digest(session, test_workspace.id, client=bot)
@@ -337,6 +340,20 @@ async def test_the_digest_asks_about_the_purchase_once_and_says_how_many_parcels
     texts = [text for _, text, _ in bot.sent]
     assert sum("AMAZON" in t for t in texts) == 1
     assert any("mais 3 parcela" in t for t in texts)  # the test user reads Portuguese
+
+
+@pytest.mark.asyncio
+async def test_a_purchase_the_model_applied_is_one_line_not_twelve_messages(
+    session: AsyncSession, test_user, test_workspace, test_account, test_categories, use_provider
+):
+    await _digest_setup(session, test_user, test_workspace, test_account, test_categories, use_provider)
+    bot = RecordingBot()
+
+    await digest_service.send_digest(session, test_workspace.id, client=bot)
+
+    assert len(bot.sent) == 1
+    assert "1 categorizada(s) automaticamente" in bot.sent[0][1]
+    assert "AMAZON" not in bot.sent[0][1]
 
 
 @pytest.mark.asyncio

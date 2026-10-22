@@ -142,7 +142,8 @@ async def test_the_summary_counts_what_is_waiting_and_what_telegram_would_still_
     assert (s["to_review"], s["unconfirmed"], s["applied_total"]) == (1, 1, 1)
     assert s["transactions"] == 5 and s["decided"] == 4  # PIX RECEBIDO is still empty
     assert s["decided_percent"] == 80
-    assert s["telegram"] == {"connected": True, "digest_enabled": True, "digest_time": "20:00", "pending": 2}
+    # Only the one that needs a decision is listed one by one; the other is a line.
+    assert s["telegram"] == {"connected": True, "digest_enabled": True, "digest_time": "20:00", "pending": 1}
 
 
 @pytest.mark.asyncio
@@ -514,3 +515,25 @@ async def test_the_summary_counts_transactions_still_waiting_for_the_model(
     s = (await client.get(f"{BASE}/summary", headers=auth_headers)).json()
 
     assert s["awaiting_ai"] == 2  # NETFLIX and PIX RECEBIDO have no category yet
+
+
+@pytest.mark.asyncio
+async def test_running_from_the_screen_does_not_also_send_the_telegram_summary(
+    client: AsyncClient, auth_headers, session: AsyncSession, test_user, test_workspace,
+    test_categories, test_transactions, use_provider,
+):
+    await _ready(session, test_user, test_workspace, test_categories, test_transactions)
+    bot = RecordingBot()
+    run = f"/api/workspaces/{test_workspace.id}/automation/run-now"
+
+    with patch.object(digest_service, "TelegramClient", lambda token: bot), patch(
+        "app.services.ai_categorization_service.resolve_llm", return_value=None
+    ):
+        quiet = await client.post(f"{run}?send_digest=false", headers=auth_headers)
+        assert quiet.json()["digest_sent"] == 0 and bot.sent == []
+
+        # The settings page's button still sends it, as before.
+        loud = await client.post(run, headers=auth_headers)
+
+    assert loud.json()["digest_sent"] == 2
+    assert len(bot.sent) == 2
