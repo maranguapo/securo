@@ -1,8 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { useAutoUpdateCheck } from '@/hooks/use-auto-update-check'
 
-const LATEST_RELEASE_URL =
-  'https://api.github.com/repos/securo-finance/securo/releases/latest'
+// This fork's own releases. Pointing at the upstream project would announce
+// versions that, once installed, replace this build and its changes.
+const RELEASE_REPO = 'maranguapo/securo'
+const LATEST_RELEASE_URL = `https://api.github.com/repos/${RELEASE_REPO}/releases/latest`
 
 const SIX_HOURS = 1000 * 60 * 60 * 6
 
@@ -27,7 +29,7 @@ async function fetchLatestRelease(): Promise<LatestRelease | null> {
 export function useLatestRelease() {
   const { enabled } = useAutoUpdateCheck()
   return useQuery<LatestRelease | null>({
-    queryKey: ['latest-release', 'securo-finance/securo'],
+    queryKey: ['latest-release', RELEASE_REPO],
     queryFn: fetchLatestRelease,
     enabled,
     staleTime: SIX_HOURS,
