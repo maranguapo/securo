@@ -26,18 +26,21 @@ aponta para a versão, não faz commit.
 
 1. **Branch com o código na `main`.** O workflow de release roda a partir do commit da tag,
    então ele precisa existir na `main` antes da primeira release.
-2. **Token para escrever no repositório da infraestrutura.**
-   GitHub → Settings → Developer settings → *Fine-grained tokens* → Generate:
-   - *Resource owner*: `maranguapo`; *Repository access*: **Only select repositories** →
-     `mrg-home-services`;
-   - *Permissions* → Repository → **Contents: Read and write**; nada além disso.
-   - Guarde em `maranguapo/securo` → Settings → Secrets and variables → Actions →
-     **New repository secret** com o nome `HOME_SERVICES_TOKEN`.
-
-   Precisa ser um token pessoal (e não o `GITHUB_TOKEN`) porque um push feito com o
-   `GITHUB_TOKEN` não dispara outros workflows, e o `securo-workflow.yml` nunca rodaria.
-   Sem o segredo, a release continua publicando as imagens e o job apenas avisa que não
-   fez deploy.
+2. **Chave de deploy para escrever no repositório da infraestrutura.** Um par de chaves SSH:
+   a pública fica como *deploy key com escrita* **só** em `maranguapo/mrg-home-services`
+   (Settings → Deploy keys), e a privada como o segredo `HOME_SERVICES_DEPLOY_KEY` em
+   `maranguapo/securo` (Settings → Secrets and variables → Actions). Para refazer:
+   ```bash
+   ssh-keygen -t ed25519 -N "" -C securo-release-deploy -f /tmp/dk
+   gh api repos/maranguapo/mrg-home-services/keys -f title=securo-release-deploy \
+      -f key="$(cat /tmp/dk.pub)" -F read_only=false
+   gh secret set HOME_SERVICES_DEPLOY_KEY -R maranguapo/securo < /tmp/dk
+   rm /tmp/dk /tmp/dk.pub
+   ```
+   Não é o `GITHUB_TOKEN` padrão porque um push feito com ele não dispara outros workflows, e
+   o `securo-workflow.yml` nunca rodaria. Um push por chave de deploy dispara normalmente. Vale
+   para um repositório só e não expira. Sem o segredo, a release continua publicando as
+   imagens e o job apenas avisa que não fez deploy.
 3. **Imagens acessíveis ao Portainer.** Depois da primeira release, em GitHub → seu perfil →
    *Packages* → `securo-backend` e `securo-frontend` → *Package settings* → *Change
    visibility* → **Public**. (Alternativa: manter privado e cadastrar o GHCR em
@@ -73,10 +76,19 @@ qualquer versão que adicione arquivos em `backend/alembic/versions/`:
 docker exec -t postgres pg_dump -U postgres -Fc securo > securo-$(date +%F).dump
 ```
 
-## Voltar atrás (rollback)
+## Implantar uma versão à mão, simular, e voltar atrás (rollback)
 
-Reverta o commit `deploy(securo): vX.Y.Z` em `mrg-home-services` (ou edite as tags para a
-versão anterior). O pipeline redeploya a imagem antiga. Atenção: **isso não desfaz
+O deploy mora em `.github/workflows/deploy-stack.yml`, que a release chama, mas que também
+roda sozinho: GitHub → Actions → **Deploy stack** → *Run workflow*.
+
+- **Rollback ou avanço:** informe a versão (ex.: `0.16.4`). Ele registra essas tags no
+  `stack.yaml` e o pipeline redeploya.
+- **Simulação:** marque *dry_run*. Clona o repositório de infra, faz a edição e roda
+  `git push --dry-run`, que checa a permissão de escrita da chave, **sem enviar nada**. Use
+  depois de mexer em chaves, segredos ou no caminho do arquivo.
+
+Também dá para reverter o commit `deploy(securo): vX.Y.Z` direto em `mrg-home-services`.
+O pipeline redeploya a imagem antiga. Atenção: **isso não desfaz
 migrations**. Se a versão nova alterou o banco de um jeito que a antiga não entende, restaure
 o backup do passo anterior junto com o rollback.
 
@@ -84,9 +96,10 @@ o backup do passo anterior junto com o rollback.
 
 | Sintoma | Causa provável |
 |---|---|
-| O job *deploy* diz "HOME_SERVICES_TOKEN is not set" | segredo ausente ou com outro nome |
+| O job *deploy* diz "HOME_SERVICES_DEPLOY_KEY is not set" | segredo ausente ou com outro nome |
+| *deploy* falha em "Permission denied (publickey)" | a deploy key foi removida do `mrg-home-services` ou não tem escrita |
 | *deploy* falha em "not found in …" | o caminho do `stack.yaml` mudou; ajuste a variável `STACK_FILE` do repositório |
-| Commit criado, mas o `securo-workflow.yml` não roda | o push foi feito sem o token pessoal, ou o commit não alterou o `stack.yaml` |
+| Commit criado, mas o `securo-workflow.yml` não roda | o commit não alterou o `stack.yaml`, ou o workflow do repositório de infra está desativado |
 | Portainer sobe a versão antiga | `BACKEND_IMAGE`/`FRONTEND_IMAGE` ainda definidos no ambiente do Portainer |
 | Portainer: "pull access denied" | pacote do GHCR ainda privado (passo 3) |
 | `exec format error` no Pi | a imagem não tem arm64; confira se o build de `linux/arm64` terminou |

@@ -148,88 +148,15 @@ jobs:
             --config /dev/null:application/vnd.cncf.artifacthub.config.v1+yaml \
             charts/securo/artifacthub-repo.yml:application/vnd.cncf.artifacthub.repository-metadata.layer.v1.yaml
 
-  # Hands the new version to the infrastructure repository. That repository
-  # already redeploys whenever its stack file changes (workflow -> n8n ->
-  # Portainer webhook), so recording the new tag there is all it takes to roll
-  # the release out. See docs/deploy-pipeline.md.
+  # Hands the new version to the infrastructure repository, which redeploys on
+  # its own when its stack file changes. The logic lives in deploy-stack.yml so
+  # it can also be run by hand (rollback, dry run). See docs/deploy-pipeline.md.
   deploy:
     needs: [build-backend, build-frontend]
     # A pre-release is published for testing, not for production.
     if: ${{ !github.event.release.prerelease }}
-    runs-on: ubuntu-latest
-    concurrency:
-      group: deploy-stack
-      cancel-in-progress: false
-    env:
-      STACK_REPO: ${{ vars.STACK_REPO || 'maranguapo/mrg-home-services' }}
-      STACK_FILE: ${{ vars.STACK_FILE || 'docker-stacks/securo/stack.yaml' }}
-      TAG_NAME: ${{ github.event.release.tag_name }}
-      RELEASE_URL: ${{ github.event.release.html_url }}
-      OWNER: ${{ github.repository_owner }}
-    steps:
-      - name: Check the deploy token
-        id: gate
-        env:
-          HOME_SERVICES_TOKEN: ${{ secrets.HOME_SERVICES_TOKEN }}
-        run: |
-          # The images are already published at this point. Without a token the
-          # release is still good; only the automatic rollout is skipped.
-          if [ -z "$HOME_SERVICES_TOKEN" ]; then
-            echo "::notice::HOME_SERVICES_TOKEN is not set; images were published but nothing was deployed."
-            echo "run=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Check out the stack repository
-        if: steps.gate.outputs.run == 'true'
-        uses: actions/checkout@v7
-        with:
-          repository: ${{ env.STACK_REPO }}
-          # A push made with the default GITHUB_TOKEN does not trigger other
-          # workflows, so the stack repository's own workflow would never run.
-          token: ${{ secrets.HOME_SERVICES_TOKEN }}
-          path: stack
-
-      - name: Point the stack at the new images
-        if: steps.gate.outputs.run == 'true'
-        run: |
-          set -euo pipefail
-          VERSION="${TAG_NAME#v}"
-          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.]+)?$ ]]; then
-            echo "::error::'$TAG_NAME' is not a version tag"; exit 1
-          fi
-          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
-
-          FILE="stack/$STACK_FILE"
-          test -f "$FILE" || { echo "::error::$STACK_FILE not found in $STACK_REPO"; exit 1; }
-
-          # Only the two image references change; everything else in the file
-          # (including how they are wrapped in ${VAR:-...}) is left alone.
-          sed -i -E "s#ghcr\.io/[A-Za-z0-9_.-]+/securo-(backend|frontend):[0-9A-Za-z._-]+#ghcr.io/${OWNER}/securo-\1:${VERSION}#g" "$FILE"
-
-          # Fail loudly rather than commit a file that never took the version.
-          for part in backend frontend; do
-            grep -q "ghcr.io/${OWNER}/securo-${part}:${VERSION}" "$FILE" || {
-              echo "::error::no securo-${part} image reference found in $STACK_FILE"; exit 1; }
-          done
-
-      - name: Commit and push
-        if: steps.gate.outputs.run == 'true'
-        working-directory: stack
-        run: |
-          set -euo pipefail
-          if git diff --quiet; then
-            echo "::notice::$STACK_FILE already points at $VERSION; nothing to do."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -am "deploy(securo): v${VERSION}" -m "Release: ${RELEASE_URL}"
-          # Another stack may have been pushed meanwhile: rebase, then push.
-          for _ in 1 2 3; do
-            if git pull --rebase && git push; then exit 0; fi
-            sleep 3
-          done
-          echo "::error::could not push to $STACK_REPO"; exit 1
-
+    uses: ./.github/workflows/deploy-stack.yml
+    with:
+      version: ${{ github.event.release.tag_name }}
+    secrets:
+      HOME_SERVICES_DEPLOY_KEY: ${{ secrets.HOME_SERVICES_DEPLOY_KEY }}
