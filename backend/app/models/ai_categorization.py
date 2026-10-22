@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import DateTime, Float, ForeignKey, String
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -40,6 +40,13 @@ class AiCategorization(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
+    # Why the model chose this category, in a few words. The review screen shows
+    # it so a decision can be judged without opening the transaction.
+    reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # A parcel that mirrors the answer for its purchase's representative. It is
+    # on the ledger so it is never asked again, but it is never listed on its
+    # own: the purchase is reviewed once, through the representative.
+    is_follower: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     # Set when the transaction went out in a digest, so it is sent once.
     notified_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True

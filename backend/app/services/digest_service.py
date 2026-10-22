@@ -259,6 +259,7 @@ async def _pending_items(session: AsyncSession, workspace_id: uuid.UUID) -> list
             .where(
                 AiCategorization.workspace_id == workspace_id,
                 AiCategorization.notified_at.is_(None),
+                AiCategorization.is_follower.is_(False),
                 AiCategorization.status.in_(("applied", "low_confidence")),
             )
             .order_by(Transaction.date.desc(), AiCategorization.created_at.desc())
@@ -409,7 +410,12 @@ def _mark(row: AiCategorization, user_id: uuid.UUID, status: str) -> None:
 
 
 async def approve(
-    session: AsyncSession, workspace_id: uuid.UUID, ai_id: uuid.UUID, user_id: uuid.UUID
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    ai_id: uuid.UUID,
+    user_id: uuid.UUID,
+    *,
+    commit: bool = True,
 ) -> Outcome:
     item = await load_item(session, workspace_id, ai_id)
     if item is None:
@@ -421,10 +427,12 @@ async def approve(
         if item.transaction.category_id is None:
             return Outcome("needs_choice", item)
         _mark(item.row, user_id, "changed")
-        await session.commit()
+        if commit:
+            await session.commit()
         return Outcome("already", item, "changed")
     _mark(item.row, user_id, "approved")
-    await session.commit()
+    if commit:
+        await session.commit()
     return Outcome("done", item, "confirmed")
 
 
@@ -434,6 +442,8 @@ async def choose(
     ai_id: uuid.UUID,
     category_id: uuid.UUID,
     user_id: uuid.UUID,
+    *,
+    commit: bool = True,
 ) -> Outcome:
     item = await load_item(session, workspace_id, ai_id)
     if item is None:
@@ -472,7 +482,8 @@ async def choose(
         ).scalars()
         for follower in followers:
             _mark(follower, user_id, status)
-    await session.commit()
+    if commit:
+        await session.commit()
     return Outcome("done", item, "confirmed" if same else "changed")
 
 

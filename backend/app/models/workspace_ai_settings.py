@@ -4,7 +4,7 @@ from typing import Optional
 
 from datetime import date, time
 
-from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, String, Time
+from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Time
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -49,6 +49,10 @@ class WorkspaceAiSettings(Base):
     digest_enabled: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     digest_time: Mapped[time] = mapped_column(Time, default=lambda: time(20, 0), server_default="20:00:00")
     last_digest_on: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    # When the categorization last ran for this workspace and how many
+    # categories it applied, shown on the review screen.
+    last_run_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_run_applied: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     updated_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),

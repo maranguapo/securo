@@ -17,7 +17,7 @@ import uuid
 from datetime import datetime, time, timedelta, timezone
 from typing import Optional
 
-from sqlalchemy import exists, select, update
+from sqlalchemy import exists, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -47,6 +47,7 @@ BATCH_DELAY_SECONDS = 7.0
 RATE_LIMIT_PAUSE_SECONDS = 30 * 60
 _PAUSE_KEY = "ai-categorization:pause:{workspace_id}"
 _DESCRIPTION_LIMIT = 120
+_REASON_LIMIT = 160
 
 _SYSTEM_PROMPT = (
     "You categorize personal finance transactions.\n"
@@ -54,11 +55,34 @@ _SYSTEM_PROMPT = (
     "user categorizes, and a numbered list of transactions.\n"
     "Answer with ONLY a JSON array, one object per transaction: "
     '{"t": <transaction number>, "c": <category number or null>, '
-    '"conf": <confidence between 0 and 1>}.\n'
+    '"conf": <confidence between 0 and 1>, "r": <reason>}.\n'
+    "r is why you chose that category, in at most twelve words. "
     "Use null for c when no category fits or you are unsure. "
     "Negative amounts are money spent, positive amounts are money received. "
     "Follow the examples: they show this user's own conventions."
 )
+
+
+def _system_prompt(language: str) -> str:
+    return (
+        _SYSTEM_PROMPT
+        + f" Write every r in the language with code {language or 'en'}."
+    )
+
+
+def parse_reasons(text: str, n_transactions: int) -> dict[int, str]:
+    """{transaction position: the model's short reason}. Reasons are optional:
+    a missing or odd one is dropped, never an error."""
+    out: dict[int, str] = {}
+    for item in _extract_json_array(text):
+        if not isinstance(item, dict):
+            continue
+        t, r = item.get("t"), item.get("r")
+        if not isinstance(t, int) or isinstance(t, bool) or not 1 <= t <= n_transactions:
+            continue
+        if isinstance(r, str) and r.strip() and t not in out:
+            out[t] = r.strip()[:_REASON_LIMIT]
+    return out
 
 
 async def is_paused(workspace_id: uuid.UUID) -> bool:
@@ -79,6 +103,18 @@ async def _pause(workspace_id: uuid.UUID) -> None:
         )
     except Exception:
         logger.debug("Could not record the AI categorization pause", exc_info=True)
+
+
+async def _reason_language(session: AsyncSession, settings: WorkspaceAiSettings) -> str:
+    """The language the reasons are written in: the one the user who set up
+    the automation reads the app in."""
+    from app.models.user import User
+
+    if settings.configured_by_user_id is None:
+        return "en"
+    user = await session.get(User, settings.configured_by_user_id)
+    language = str(((user.preferences or {}) if user else {}).get("language") or "")
+    return language or "en"
 
 
 async def get_settings(
@@ -188,6 +224,38 @@ async def _pending_transactions(
         .limit(MAX_PER_RUN)
     )
     return list(result.scalars().all())
+
+
+async def count_pending(session: AsyncSession, workspace_id: uuid.UUID, now: datetime) -> int:
+    """How many transactions are waiting for the model (same rule as a run, no cap)."""
+    already_seen = exists().where(AiCategorization.transaction_id == Transaction.id)
+    return int(
+        await session.scalar(
+            select(func.count())
+            .select_from(Transaction)
+            .where(
+                Transaction.workspace_id == workspace_id,
+                Transaction.category_id.is_(None),
+                Transaction.is_ignored.is_(False),
+                Transaction.transfer_pair_id.is_(None),
+                Transaction.created_at >= now - LOOKBACK,
+                ~already_seen,
+            )
+        )
+        or 0
+    )
+
+
+async def record_run(
+    session: AsyncSession, workspace_id: uuid.UUID, applied: int, now: Optional[datetime] = None
+) -> None:
+    """Remember when the categorization last ran and what it did."""
+    settings = await get_settings(session, workspace_id)
+    if settings is None:
+        return
+    settings.last_run_at = now or datetime.now(timezone.utc)
+    settings.last_run_applied = applied
+    await session.commit()
 
 
 async def _categories(session: AsyncSession, workspace_id: uuid.UUID) -> list[Category]:
@@ -380,6 +448,7 @@ async def _plan_installments(
                         suggested_category_id=None,
                         confidence=None,
                         status="low_confidence",
+                        is_follower=True,
                         notified_at=now,
                     )
                 )
@@ -399,7 +468,9 @@ async def _record_and_apply(
     min_confidence: float,
     followers: Optional[dict[uuid.UUID, list[Transaction]]] = None,
     now: Optional[datetime] = None,
+    reasons: Optional[dict[int, str]] = None,
 ) -> int:
+    reasons = reasons or {}
     followers = followers or {}
     now = now or datetime.now(timezone.utc)
     applied = 0
@@ -449,6 +520,7 @@ async def _record_and_apply(
                 applied += int(getattr(shared, "rowcount", 0) or 0)
 
         status = "applied" if confident else "low_confidence"
+        reason = reasons.get(position)
         session.add(
             AiCategorization(
                 transaction_id=tx.id,
@@ -456,6 +528,7 @@ async def _record_and_apply(
                 suggested_category_id=category.id if category else None,
                 confidence=confidence,
                 status=status,
+                reason=reason,
             )
         )
         # The rest of the purchase is on the ledger too, so it is never put to
@@ -469,6 +542,8 @@ async def _record_and_apply(
                     suggested_category_id=category.id if category else None,
                     confidence=confidence,
                     status=status,
+                    reason=reason,
+                    is_follower=True,
                     notified_at=now,
                 )
             )
@@ -500,6 +575,7 @@ async def categorize_pending(
         logger.warning("AI categorization on for workspace %s but no usable LLM", workspace_id)
         return 0
     provider, model = llm
+    language = await _reason_language(session, settings)
 
     now = now or datetime.now(timezone.utc)
     pending = await _pending_transactions(session, workspace_id, now)
@@ -518,7 +594,7 @@ async def categorize_pending(
             await asyncio.sleep(BATCH_DELAY_SECONDS)
         batch = to_send[i : i + BATCH_SIZE]
         messages = [
-            ChatMessage(role="system", content=_SYSTEM_PROMPT),
+            ChatMessage(role="system", content=_system_prompt(language)),
             ChatMessage(role="user", content=_build_prompt(categories, examples, batch)),
         ]
         try:
@@ -552,6 +628,7 @@ async def categorize_pending(
             settings.min_confidence,
             followers,
             now,
+            parse_reasons(response.content, len(batch)),
         )
     return applied
 
@@ -559,9 +636,12 @@ async def categorize_pending(
 __all__ = [
     "categorize_pending",
     "parse_suggestions",
+    "parse_reasons",
     "get_settings",
     "resolve_llm",
     "save_settings",
     "InvalidAutomationSettings",
     "is_paused",
+    "count_pending",
+    "record_run",
 ]

@@ -33,6 +33,7 @@ async def run_workspace(
     """
     now = now or datetime.now(timezone.utc)
     applied = await ai_categorization_service.categorize_pending(session, workspace_id, now=now)
+    await ai_categorization_service.record_run(session, workspace_id, applied, now)
 
     settings = await ai_categorization_service.get_settings(session, workspace_id)
     sent = 0

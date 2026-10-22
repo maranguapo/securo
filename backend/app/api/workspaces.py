@@ -450,6 +450,7 @@ async def run_automation_now(
     if await ai_categorization_service.is_paused(workspace_id):
         raise limited
     count = await ai_categorization_service.categorize_pending(session, workspace_id)
+    await ai_categorization_service.record_run(session, workspace_id, count)
     if await ai_categorization_service.is_paused(workspace_id):
         raise limited
     sent = 0
