@@ -179,6 +179,7 @@
     "import": "Importeren",
     "rules": "Regels",
     "categories": "Categorieën",
+    "categorization": "Categorization",
     "budgets": "Budgetten",
     "settings": "Instellingen",
     "recurring": "Terugkerend",
@@ -2932,6 +2933,111 @@
       "invoicesHint": "Hoe we bepalen welke betaling welke factuur voldoet.",
       "recurring": "Regels voor Terugkerend",
       "recurringHint": "Hoe we bepalen dat een afschrijving de rekening is die je al verwachtte."
+    }
+  },
+  "categorization": {
+    "section": "Organization",
+    "tabReview": "Review",
+    "tabApplied": "Applied",
+    "run": "Categorize now",
+    "running": "Categorizing…",
+    "settings": "Automation settings",
+    "search": "Search merchant or description",
+    "reviewTitle": "Waiting for your choice",
+    "reviewHint": "The AI wasn't sure about these, so it left them uncategorized.",
+    "appliedTitle": "Applied by the AI",
+    "appliedHint": "What the AI categorized for you. Confirm, correct or undo any of it.",
+    "badge": "{{count}} waiting for review",
+    "loadError": "Could not load the review.",
+    "retry": "Try again",
+    "truncated": "Showing the 500 most recent. Narrow the search to see the rest.",
+    "filterState": "State",
+    "filterConfidence": "Confidence",
+    "shortcuts": "↑ ↓ move · C or Enter confirm · U undo · X select",
+    "strip": {
+      "off": "AI categorization is off",
+      "paused": "Paused: the AI provider is limiting requests",
+      "allReviewed": "All reviewed",
+      "toReview": "{{count}} to review",
+      "lastRun": "last run {{when}}, applied {{count}}",
+      "neverRun": "has not run yet",
+      "progress": "{{transactions}} transactions · {{percent}}% decided",
+      "progressLabel": "Share of transactions that have a category",
+      "awaiting": "{{count}} waiting for the AI",
+      "telegramPending": "Telegram summary at {{time}}: {{count}} still to send. Answering here takes them out.",
+      "telegramIdle": "Telegram summary at {{time}}: nothing left to send"
+    },
+    "state": {
+      "all": "All",
+      "applied": "Awaiting confirmation",
+      "approved": "Confirmed",
+      "changed": "Corrected by you"
+    },
+    "band": {
+      "all": "Any confidence",
+      "lt90": "Below 90%",
+      "ge90": "90% or more"
+    },
+    "row": {
+      "select": "Select {{name}}",
+      "confirm": "Confirm",
+      "undo": "Undo",
+      "confirmed": "Confirmed",
+      "corrected": "Corrected",
+      "chooseCategory": "Choose a category",
+      "useSuggestion": "Use {{name}}",
+      "installment": "{{number}}/{{total}}",
+      "installmentMore": "+{{count}}",
+      "installmentHint": "One purchase in installments: the answer also applies to {{count}} more."
+    },
+    "group": {
+      "select": "Select all from {{name}}",
+      "count": "{{count}} transaction(s)",
+      "mixed": "several categories",
+      "changeAll": "Change all",
+      "createRule": "Create rule",
+      "createRuleHint": "Always categorize this merchant the same way, before the AI is asked"
+    },
+    "day": {
+      "confirm": "Confirm {{count}}",
+      "undo": "Undo {{count}}",
+      "undoTitle": "Undo {{count}} categorization(s)?",
+      "undoBody": "Their categories are removed and they return to Review.",
+      "undoConfirm": "Undo"
+    },
+    "selection": {
+      "label": "Actions for the selection",
+      "count": "{{count}} selected",
+      "confirm": "Confirm {{count}}",
+      "change": "Change category",
+      "undo": "Undo",
+      "clear": "Clear selection"
+    },
+    "rule": {
+      "title": "Create a rule",
+      "description": "From now on, “{{merchant}}” gets the category below as soon as it is imported, before the AI is asked. Matching transactions that are still uncategorized are filled in too.",
+      "category": "Category",
+      "create": "Create rule",
+      "done": "Rule created: {{name}}. {{count}} more categorized."
+    },
+    "empty": {
+      "review": "Nothing waiting for you",
+      "reviewHint": "Every transaction the AI was unsure about has an answer.",
+      "applied": "Nothing here yet",
+      "appliedHint": "When the AI categorizes transactions they will show up here.",
+      "filtered": "No results for these filters"
+    },
+    "off": {
+      "title": "AI categorization is off",
+      "body": "Turn it on to have the AI categorize new transactions and review its work here.",
+      "cta": "Open settings"
+    },
+    "toast": {
+      "confirmed": "{{count}} confirmed",
+      "skipped": "{{count}} had nothing to confirm",
+      "changed": "{{count}} updated",
+      "undone": "{{count}} undone",
+      "error": "Could not complete the action"
     }
   }
 }

@@ -72,7 +72,8 @@ A workspace can have an LLM categorize the transactions nothing else categorized
 
 1. Enable the agents module (`AGENTS_ENABLED=true`, `COMPOSE_PROFILES=agents`) and add an LLM connection under **Agents**.
 2. In **Workspace settings → Automation**, turn on *Categorize with AI*, pick the connection and model, and set a minimum confidence.
-3. For the summary, create a bot with [@BotFather](https://t.me/BotFather), save its token under **Workspace settings → Integrations → Telegram**, press *Connect my Telegram*, and set the time under Automation. The bot runs as its own service: add `telegram` to `COMPOSE_PROFILES`.
+3. Review what the AI did under **Categorization** in the sidebar: confirm, correct or undo each decision (one at a time, by merchant, by day, or a selection), see why the AI chose it, and turn a correction into a permanent rule. Whatever you answer there is left out of the Telegram summary.
+4. For the summary, create a bot with [@BotFather](https://t.me/BotFather), save its token under **Workspace settings → Integrations → Telegram**, press *Connect my Telegram*, and set the time under Automation. The bot runs as its own service: add `telegram` to `COMPOSE_PROFILES`.
 
 Privacy: with a cloud model, each transaction's description, payee, amount and date go to that provider; use a local model to keep them on your network. Telegram messages are not end-to-end encrypted.
 

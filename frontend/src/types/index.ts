@@ -1817,3 +1817,90 @@ export interface ReconciliationHistoryEvent {
   transaction_id?: string | null
   transaction_description?: string | null
 }
+
+// --- AI categorization review screen ------------------------------------------
+export type AiTab = 'review' | 'applied'
+export type AiItemStatus = 'applied' | 'approved' | 'changed' | 'low_confidence'
+
+export interface AiCategoryRef {
+  id: string
+  name: string
+  group: string | null
+  icon: string | null
+  color: string | null
+}
+
+export interface AiInstallmentInfo {
+  number: number | null
+  total: number | null
+  // Other parcels of the same purchase that share this answer.
+  others: number
+}
+
+export interface AiItem {
+  id: string
+  transaction_id: string
+  status: AiItemStatus
+  confidence: number | null
+  reason: string | null
+  decided_at: string
+  reviewed_at: string | null
+  // Still on its way to the next Telegram summary.
+  pending_telegram: boolean
+  description: string
+  payee: string | null
+  merchant: string
+  merchant_key: string
+  amount: number
+  currency: string
+  date: string
+  account_name: string
+  category: AiCategoryRef | null
+  suggested: AiCategoryRef | null
+  installment: AiInstallmentInfo | null
+}
+
+export interface AiItemsResponse {
+  items: AiItem[]
+  has_more: boolean
+}
+
+export interface AiSummary {
+  enabled: boolean
+  paused: boolean
+  last_run_at: string | null
+  last_run_applied: number | null
+  transactions: number
+  decided: number
+  decided_percent: number
+  to_review: number
+  unconfirmed: number
+  applied_total: number
+  awaiting_ai: number
+  telegram: {
+    connected: boolean
+    digest_enabled: boolean
+    digest_time: string | null
+    // What the next summary would still send. Answering on screen shrinks it.
+    pending: number
+  }
+}
+
+export interface AiItemsParams {
+  tab: AiTab
+  status?: 'applied' | 'approved' | 'changed'
+  min_confidence?: number
+  max_confidence?: number
+  q?: string
+}
+
+export interface AiBulkResult {
+  done: number
+  skipped: number
+}
+
+export interface AiRuleResult {
+  rule_id: string
+  rule_name: string
+  applied: number
+}

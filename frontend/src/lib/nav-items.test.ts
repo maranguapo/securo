@@ -40,12 +40,42 @@ describe('nav catalog', () => {
 
   it('has a link for every module in the catalog', () => {
     const covered = navItems.filter((i) => i.type === 'link').map((i) => i.module)
-    expect([...covered].sort()).toEqual([...MODULE_IDS].sort())
+    expect([...new Set(covered)].sort()).toEqual([...MODULE_IDS].sort())
   })
 
-  it('gives every link a distinct module', () => {
-    const covered = navItems.filter((i) => i.type === 'link').map((i) => i.module)
-    expect(new Set(covered).size).toBe(covered.length)
+  it('gives every link a distinct module, except sub-pages gated by a feature', () => {
+    // Hiding a module should hide exactly one link. A link that also needs an
+    // optional feature (`requires`) is a sub-page of its module's destination,
+    // not a module of its own, so it may share the module it belongs to.
+    const links = navItems.flatMap((i) => (i.type === 'link' ? [i] : []))
+    const owners = links.filter((i) => i.requires === undefined).map((i) => i.module)
+    expect(new Set(owners).size).toBe(owners.length)
+    for (const sub of links.filter((i) => i.requires !== undefined)) {
+      expect(owners).toContain(sub.module)
+    }
+  })
+})
+
+describe('feature-gated links', () => {
+  const review = () => navItems.find((i) => i.type === 'link' && i.key === 'categorization')
+
+  it('catalogues the AI categorization review under the categories module', () => {
+    expect(review()).toMatchObject({ module: 'categories', requires: 'agents' })
+  })
+
+  it('shows it only when its module is on and the agents feature is available', () => {
+    const keys = (features?: { agents?: boolean }, hasModule: (id: ModuleId) => boolean = all) =>
+      linkKeys(visibleNavItems(navItems, hasModule, features))
+
+    expect(keys({ agents: true })).toContain('categorization')
+    expect(keys()).not.toContain('categorization')
+    expect(keys({ agents: false })).not.toContain('categorization')
+    expect(keys({ agents: true }, allExcept('categories'))).not.toContain('categorization')
+  })
+
+  it('sits next to the categories link', () => {
+    const keys = linkKeys(visibleNavItems(navItems, all, { agents: true }))
+    expect(keys.indexOf('categorization')).toBe(keys.indexOf('categories') + 1)
   })
 })
 

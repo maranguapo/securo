@@ -179,6 +179,7 @@
     "import": "Importar",
     "rules": "Reglas",
     "categories": "Categorías",
+    "categorization": "Categorización",
     "budgets": "Presupuestos",
     "settings": "Ajustes",
     "recurring": "Recurrentes",
@@ -2934,6 +2935,111 @@
       "invoicesHint": "Cómo decidimos qué pago salda qué factura.",
       "recurring": "Reglas de Recurrentes",
       "recurringHint": "Cómo decidimos que un cargo es la cuenta que ya esperabas."
+    }
+  },
+  "categorization": {
+    "section": "Organización",
+    "tabReview": "Revisar",
+    "tabApplied": "Aplicadas",
+    "run": "Categorizar ahora",
+    "running": "Categorizando…",
+    "settings": "Ajustes de automatización",
+    "search": "Buscar comercio o descripción",
+    "reviewTitle": "Esperando tu elección",
+    "reviewHint": "La IA no estaba segura de estas, así que las dejó sin categoría.",
+    "appliedTitle": "Aplicadas por la IA",
+    "appliedHint": "Lo que la IA categorizó por ti. Confirma, corrige o deshaz cualquiera.",
+    "badge": "{{count}} pendientes de revisión",
+    "loadError": "No se pudo cargar la revisión.",
+    "retry": "Reintentar",
+    "truncated": "Se muestran las 500 más recientes. Afina la búsqueda para ver el resto.",
+    "filterState": "Estado",
+    "filterConfidence": "Confianza",
+    "shortcuts": "↑ ↓ mover · C o Enter confirmar · U deshacer · X seleccionar",
+    "strip": {
+      "off": "La categorización por IA está desactivada",
+      "paused": "En pausa: el proveedor de IA está limitando las solicitudes",
+      "allReviewed": "Todo revisado",
+      "toReview": "{{count}} por revisar",
+      "lastRun": "última ejecución {{when}}, aplicó {{count}}",
+      "neverRun": "aún no se ha ejecutado",
+      "progress": "{{transactions}} transacciones · {{percent}}% decididas",
+      "progressLabel": "Proporción de transacciones con categoría",
+      "awaiting": "{{count}} esperando a la IA",
+      "telegramPending": "Resumen de Telegram a las {{time}}: faltan {{count}} por enviar. Responder aquí las quita del resumen.",
+      "telegramIdle": "Resumen de Telegram a las {{time}}: nada que enviar"
+    },
+    "state": {
+      "all": "Todas",
+      "applied": "Pendientes de confirmar",
+      "approved": "Confirmadas",
+      "changed": "Corregidas por ti"
+    },
+    "band": {
+      "all": "Cualquier confianza",
+      "lt90": "Menos de 90%",
+      "ge90": "90% o más"
+    },
+    "row": {
+      "select": "Seleccionar {{name}}",
+      "confirm": "Confirmar",
+      "undo": "Deshacer",
+      "confirmed": "Confirmada",
+      "corrected": "Corregida",
+      "chooseCategory": "Elegir categoría",
+      "useSuggestion": "Usar {{name}}",
+      "installment": "{{number}}/{{total}}",
+      "installmentMore": "+{{count}}",
+      "installmentHint": "Una compra a plazos: la respuesta vale también para {{count}} más."
+    },
+    "group": {
+      "select": "Seleccionar todas de {{name}}",
+      "count": "{{count}} transacción(es)",
+      "mixed": "varias categorías",
+      "changeAll": "Cambiar todas",
+      "createRule": "Crear regla",
+      "createRuleHint": "Categorizar siempre este comercio igual, antes de consultar a la IA"
+    },
+    "day": {
+      "confirm": "Confirmar {{count}}",
+      "undo": "Deshacer {{count}}",
+      "undoTitle": "¿Deshacer {{count}} categorización(es)?",
+      "undoBody": "Se quitan sus categorías y vuelven a Revisar.",
+      "undoConfirm": "Deshacer"
+    },
+    "selection": {
+      "label": "Acciones para la selección",
+      "count": "{{count}} seleccionada(s)",
+      "confirm": "Confirmar {{count}}",
+      "change": "Cambiar categoría",
+      "undo": "Deshacer",
+      "clear": "Borrar selección"
+    },
+    "rule": {
+      "title": "Crear una regla",
+      "description": "A partir de ahora, «{{merchant}}» recibe la categoría de abajo al importarse, antes de consultar a la IA. También se rellenan las transacciones parecidas que sigan sin categoría.",
+      "category": "Categoría",
+      "create": "Crear regla",
+      "done": "Regla creada: {{name}}. {{count}} más categorizadas."
+    },
+    "empty": {
+      "review": "Nada te espera",
+      "reviewHint": "Toda transacción sobre la que la IA dudó ya tiene respuesta.",
+      "applied": "Aún no hay nada",
+      "appliedHint": "Cuando la IA categorice transacciones aparecerán aquí.",
+      "filtered": "Sin resultados para estos filtros"
+    },
+    "off": {
+      "title": "La categorización por IA está desactivada",
+      "body": "Actívala para que la IA categorice las nuevas transacciones y revisa aquí su trabajo.",
+      "cta": "Abrir ajustes"
+    },
+    "toast": {
+      "confirmed": "{{count}} confirmada(s)",
+      "skipped": "{{count}} sin nada que confirmar",
+      "changed": "{{count}} actualizada(s)",
+      "undone": "{{count}} deshecha(s)",
+      "error": "No se pudo completar la acción"
     }
   }
 }

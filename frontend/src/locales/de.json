@@ -179,6 +179,7 @@
     "import": "Importieren",
     "rules": "Regeln",
     "categories": "Kategorien",
+    "categorization": "Kategorisierung",
     "budgets": "Budgets",
     "settings": "Einstellungen",
     "recurring": "Wiederkehrend",
@@ -2931,6 +2932,111 @@
       "invoicesHint": "Wie wir entscheiden, welche Zahlung welche Rechnung begleicht.",
       "recurring": "Regeln für Wiederkehrendes",
       "recurringHint": "Wie wir entscheiden, dass eine Buchung die erwartete Rechnung ist."
+    }
+  },
+  "categorization": {
+    "section": "Organisation",
+    "tabReview": "Prüfen",
+    "tabApplied": "Angewendet",
+    "run": "Jetzt kategorisieren",
+    "running": "Kategorisiere…",
+    "settings": "Automatisierungs-Einstellungen",
+    "search": "Händler oder Beschreibung suchen",
+    "reviewTitle": "Wartet auf deine Auswahl",
+    "reviewHint": "Bei diesen war die KI unsicher und hat sie ohne Kategorie gelassen.",
+    "appliedTitle": "Von der KI angewendet",
+    "appliedHint": "Was die KI für dich kategorisiert hat. Bestätige, korrigiere oder mache rückgängig.",
+    "badge": "{{count}} zu prüfen",
+    "loadError": "Die Prüfung konnte nicht geladen werden.",
+    "retry": "Erneut versuchen",
+    "truncated": "Die 500 neuesten werden angezeigt. Grenze die Suche ein, um den Rest zu sehen.",
+    "filterState": "Status",
+    "filterConfidence": "Sicherheit",
+    "shortcuts": "↑ ↓ bewegen · C oder Enter bestätigen · U rückgängig · X auswählen",
+    "strip": {
+      "off": "KI-Kategorisierung ist aus",
+      "paused": "Pausiert: Der KI-Anbieter begrenzt die Anfragen",
+      "allReviewed": "Alles geprüft",
+      "toReview": "{{count}} zu prüfen",
+      "lastRun": "letzter Lauf {{when}}, {{count}} angewendet",
+      "neverRun": "noch nicht gelaufen",
+      "progress": "{{transactions}} Transaktionen · {{percent}} % entschieden",
+      "progressLabel": "Anteil der Transaktionen mit Kategorie",
+      "awaiting": "{{count}} warten auf die KI",
+      "telegramPending": "Telegram-Zusammenfassung um {{time}}: {{count}} stehen noch aus. Hier zu antworten nimmt sie heraus.",
+      "telegramIdle": "Telegram-Zusammenfassung um {{time}}: nichts mehr zu senden"
+    },
+    "state": {
+      "all": "Alle",
+      "applied": "Warten auf Bestätigung",
+      "approved": "Bestätigt",
+      "changed": "Von dir korrigiert"
+    },
+    "band": {
+      "all": "Beliebige Sicherheit",
+      "lt90": "Unter 90 %",
+      "ge90": "90 % oder mehr"
+    },
+    "row": {
+      "select": "{{name}} auswählen",
+      "confirm": "Bestätigen",
+      "undo": "Rückgängig",
+      "confirmed": "Bestätigt",
+      "corrected": "Korrigiert",
+      "chooseCategory": "Kategorie wählen",
+      "useSuggestion": "{{name}} verwenden",
+      "installment": "{{number}}/{{total}}",
+      "installmentMore": "+{{count}}",
+      "installmentHint": "Ein Ratenkauf: Die Antwort gilt auch für {{count}} weitere."
+    },
+    "group": {
+      "select": "Alle von {{name}} auswählen",
+      "count": "{{count}} Transaktion(en)",
+      "mixed": "mehrere Kategorien",
+      "changeAll": "Alle ändern",
+      "createRule": "Regel erstellen",
+      "createRuleHint": "Diesen Händler immer gleich kategorisieren, bevor die KI gefragt wird"
+    },
+    "day": {
+      "confirm": "{{count}} bestätigen",
+      "undo": "{{count}} rückgängig",
+      "undoTitle": "{{count}} Kategorisierung(en) rückgängig machen?",
+      "undoBody": "Ihre Kategorien werden entfernt und sie kehren zu Prüfen zurück.",
+      "undoConfirm": "Rückgängig"
+    },
+    "selection": {
+      "label": "Aktionen für die Auswahl",
+      "count": "{{count}} ausgewählt",
+      "confirm": "{{count}} bestätigen",
+      "change": "Kategorie ändern",
+      "undo": "Rückgängig",
+      "clear": "Auswahl aufheben"
+    },
+    "rule": {
+      "title": "Regel erstellen",
+      "description": "Ab jetzt erhält „{{merchant}}“ die Kategorie unten beim Import, bevor die KI gefragt wird. Passende Transaktionen ohne Kategorie werden ebenfalls ergänzt.",
+      "category": "Kategorie",
+      "create": "Regel erstellen",
+      "done": "Regel erstellt: {{name}}. {{count}} weitere kategorisiert."
+    },
+    "empty": {
+      "review": "Nichts wartet auf dich",
+      "reviewHint": "Jede Transaktion, bei der die KI unsicher war, hat eine Antwort.",
+      "applied": "Noch nichts hier",
+      "appliedHint": "Wenn die KI Transaktionen kategorisiert, erscheinen sie hier.",
+      "filtered": "Keine Ergebnisse für diese Filter"
+    },
+    "off": {
+      "title": "KI-Kategorisierung ist aus",
+      "body": "Schalte sie ein, damit die KI neue Transaktionen kategorisiert und du ihre Arbeit hier prüfen kannst.",
+      "cta": "Einstellungen öffnen"
+    },
+    "toast": {
+      "confirmed": "{{count}} bestätigt",
+      "skipped": "{{count}} ohne etwas zu bestätigen",
+      "changed": "{{count}} aktualisiert",
+      "undone": "{{count}} rückgängig gemacht",
+      "error": "Die Aktion konnte nicht abgeschlossen werden"
     }
   }
 }

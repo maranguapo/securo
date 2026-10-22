@@ -179,6 +179,7 @@
     "import": "Importa",
     "rules": "Regole",
     "categories": "Categorie",
+    "categorization": "Categorizzazione",
     "budgets": "Budget",
     "settings": "Impostazioni",
     "recurring": "Ricorrenti",
@@ -2934,6 +2935,111 @@
       "invoicesHint": "Come decidiamo quale pagamento salda quale fattura.",
       "recurring": "Regole Ricorrenti",
       "recurringHint": "Come decidiamo che un addebito è la bolletta che stavi già aspettando."
+    }
+  },
+  "categorization": {
+    "section": "Organizzazione",
+    "tabReview": "Da rivedere",
+    "tabApplied": "Applicate",
+    "run": "Categorizza ora",
+    "running": "Categorizzazione…",
+    "settings": "Impostazioni dell'automazione",
+    "search": "Cerca esercente o descrizione",
+    "reviewTitle": "In attesa della tua scelta",
+    "reviewHint": "L'IA non era sicura di queste, quindi le ha lasciate senza categoria.",
+    "appliedTitle": "Applicate dall'IA",
+    "appliedHint": "Ciò che l'IA ha categorizzato per te. Conferma, correggi o annulla.",
+    "badge": "{{count}} da rivedere",
+    "loadError": "Impossibile caricare la revisione.",
+    "retry": "Riprova",
+    "truncated": "Vengono mostrate le 500 più recenti. Restringi la ricerca per vedere il resto.",
+    "filterState": "Stato",
+    "filterConfidence": "Affidabilità",
+    "shortcuts": "↑ ↓ sposta · C o Invio conferma · U annulla · X seleziona",
+    "strip": {
+      "off": "La categorizzazione con IA è disattivata",
+      "paused": "In pausa: il provider di IA sta limitando le richieste",
+      "allReviewed": "Tutto rivisto",
+      "toReview": "{{count}} da rivedere",
+      "lastRun": "ultima esecuzione {{when}}, applicate {{count}}",
+      "neverRun": "non ancora eseguita",
+      "progress": "{{transactions}} transazioni · {{percent}}% decise",
+      "progressLabel": "Quota di transazioni con una categoria",
+      "awaiting": "{{count}} in attesa dell'IA",
+      "telegramPending": "Riepilogo Telegram alle {{time}}: {{count}} ancora da inviare. Rispondere qui le toglie dal riepilogo.",
+      "telegramIdle": "Riepilogo Telegram alle {{time}}: niente da inviare"
+    },
+    "state": {
+      "all": "Tutte",
+      "applied": "Da confermare",
+      "approved": "Confermate",
+      "changed": "Corrette da te"
+    },
+    "band": {
+      "all": "Qualsiasi affidabilità",
+      "lt90": "Sotto il 90%",
+      "ge90": "90% o più"
+    },
+    "row": {
+      "select": "Seleziona {{name}}",
+      "confirm": "Conferma",
+      "undo": "Annulla",
+      "confirmed": "Confermata",
+      "corrected": "Corretta",
+      "chooseCategory": "Scegli una categoria",
+      "useSuggestion": "Usa {{name}}",
+      "installment": "{{number}}/{{total}}",
+      "installmentMore": "+{{count}}",
+      "installmentHint": "Un acquisto a rate: la risposta vale anche per altre {{count}}."
+    },
+    "group": {
+      "select": "Seleziona tutte di {{name}}",
+      "count": "{{count}} transazione/i",
+      "mixed": "più categorie",
+      "changeAll": "Cambia tutte",
+      "createRule": "Crea regola",
+      "createRuleHint": "Categorizza sempre questo esercente allo stesso modo, prima di chiedere all'IA"
+    },
+    "day": {
+      "confirm": "Conferma {{count}}",
+      "undo": "Annulla {{count}}",
+      "undoTitle": "Annullare {{count}} categorizzazione/i?",
+      "undoBody": "Le loro categorie vengono rimosse e tornano in Da rivedere.",
+      "undoConfirm": "Annulla"
+    },
+    "selection": {
+      "label": "Azioni sulla selezione",
+      "count": "{{count}} selezionata/e",
+      "confirm": "Conferma {{count}}",
+      "change": "Cambia categoria",
+      "undo": "Annulla",
+      "clear": "Cancella selezione"
+    },
+    "rule": {
+      "title": "Crea una regola",
+      "description": "D'ora in poi «{{merchant}}» riceve la categoria qui sotto all'importazione, prima di chiedere all'IA. Vengono riempite anche le transazioni simili ancora senza categoria.",
+      "category": "Categoria",
+      "create": "Crea regola",
+      "done": "Regola creata: {{name}}. {{count}} altre categorizzate."
+    },
+    "empty": {
+      "review": "Niente in attesa",
+      "reviewHint": "Ogni transazione di cui l'IA dubitava ha una risposta.",
+      "applied": "Ancora niente",
+      "appliedHint": "Quando l'IA categorizzerà transazioni, appariranno qui.",
+      "filtered": "Nessun risultato per questi filtri"
+    },
+    "off": {
+      "title": "La categorizzazione con IA è disattivata",
+      "body": "Attivala perché l'IA categorizzi le nuove transazioni e rivedi qui il suo lavoro.",
+      "cta": "Apri impostazioni"
+    },
+    "toast": {
+      "confirmed": "{{count}} confermata/e",
+      "skipped": "{{count}} senza nulla da confermare",
+      "changed": "{{count}} aggiornata/e",
+      "undone": "{{count}} annullata/e",
+      "error": "Impossibile completare l'azione"
     }
   }
 }

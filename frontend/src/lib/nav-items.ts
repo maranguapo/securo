@@ -4,6 +4,7 @@ import {
   Building2,
   Landmark,
   PiggyBank,
+  Sparkles,
   Receipt,
   Repeat,
   SlidersHorizontal,
@@ -26,7 +27,15 @@ import type { ModuleId } from './modules'
  * checkable rather than aspirational.
  */
 export type NavItem =
-  | { type: 'link'; key: string; path: string; icon: React.ElementType; module: ModuleId }
+  | {
+      type: 'link'
+      key: string
+      path: string
+      icon: React.ElementType
+      module: ModuleId
+      // Needs an optional feature the server may not run; hidden without it.
+      requires?: 'agents'
+    }
   | { type: 'separator'; labelKey: string }
 
 export const navItems: NavItem[] = [
@@ -47,6 +56,7 @@ export const navItems: NavItem[] = [
   { type: 'link', key: 'goals', path: '/goals', icon: Target, module: 'goals' },
   { type: 'link', key: 'recurring', path: '/recurring', icon: Repeat, module: 'recurring' },
   { type: 'link', key: 'categories', path: '/categories', icon: Tag, module: 'categories' },
+  { type: 'link', key: 'categorization', path: '/categorization', icon: Sparkles, module: 'categories', requires: 'agents' },
   { type: 'link', key: 'payees', path: '/payees', icon: Users, module: 'payees' },
   { type: 'link', key: 'splitGroups', path: '/groups', icon: Split, module: 'split_groups' },
   { type: 'link', key: 'rules', path: '/rules', icon: SlidersHorizontal, module: 'rules' },
@@ -60,8 +70,13 @@ export const navItems: NavItem[] = [
 export function visibleNavItems(
   items: NavItem[],
   hasModule: (id: ModuleId) => boolean,
+  features: { agents?: boolean } = {},
 ): NavItem[] {
-  const kept = items.filter((item) => item.type !== 'link' || hasModule(item.module))
+  const kept = items.filter(
+    (item) =>
+      item.type !== 'link' ||
+      (hasModule(item.module) && (item.requires === undefined || features[item.requires] === true)),
+  )
   return kept.filter((item, index) => {
     if (item.type !== 'separator') return true
     // Links always follow their own header, so the item right after a

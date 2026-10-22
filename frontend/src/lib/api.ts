@@ -67,6 +67,11 @@ import type {
   AutomationSettings,
   AutomationSettingsPayload,
   TelegramChat,
+  AiItemsParams,
+  AiItemsResponse,
+  AiSummary,
+  AiBulkResult,
+  AiRuleResult,
   TelegramLinkInfo,
   WorkspaceRole,
   Asset,
@@ -247,6 +252,40 @@ export const workspaces = {
   },
   runAutomation: async (id: string): Promise<{ categorized: number; digest_sent: number }> => {
     const { data } = await api.post(`/workspaces/${id}/automation/run-now`)
+    return data
+  },
+}
+
+// AI categorization review screen
+export const aiCategorization = {
+  summary: async (): Promise<AiSummary> => {
+    const { data } = await api.get('/ai-categorization/summary')
+    return data
+  },
+  items: async (params: AiItemsParams): Promise<AiItemsResponse> => {
+    const { data } = await api.get('/ai-categorization/items', { params })
+    return data
+  },
+  approve: async (ids: string[]): Promise<AiBulkResult> => {
+    const { data } = await api.post('/ai-categorization/items/approve', { ids })
+    return data
+  },
+  setCategory: async (ids: string[], categoryId: string): Promise<AiBulkResult> => {
+    const { data } = await api.post('/ai-categorization/items/category', {
+      ids,
+      category_id: categoryId,
+    })
+    return data
+  },
+  undo: async (ids: string[]): Promise<AiBulkResult> => {
+    const { data } = await api.post('/ai-categorization/items/undo', { ids })
+    return data
+  },
+  createRule: async (id: string, categoryId: string): Promise<AiRuleResult> => {
+    const { data } = await api.post('/ai-categorization/items/rule', {
+      id,
+      category_id: categoryId,
+    })
     return data
   },
 }

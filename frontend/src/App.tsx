@@ -44,6 +44,7 @@ const ProductsPage = lazy(() => import('@/pages/products'))
 const InvoiceDetailPage = lazy(() => import('@/pages/invoice-detail'))
 const SharedInvoicePage = lazy(() => import('@/pages/shared-invoice'))
 const WorkspaceSettingsPage = lazy(() => import('@/pages/workspace-settings'))
+const CategorizationPage = lazy(() => import('@/pages/categorization'))
 const OAuthCallbackPage = lazy(() => import('@/pages/oauth-callback'))
 const OIDCCallbackPage = lazy(() => import('@/pages/oidc-callback'))
 
@@ -103,6 +104,7 @@ function App() {
                   <Route path="/import" element={<ModuleRoute module="import"><ImportPage /></ModuleRoute>} />
                   <Route path="/rules" element={<ModuleRoute module="rules"><RulesPage /></ModuleRoute>} />
                   <Route path="/categories" element={<ModuleRoute module="categories"><CategoriesPage /></ModuleRoute>} />
+                  <Route path="/categorization" element={<ModuleRoute module="categories"><CategorizationPage /></ModuleRoute>} />
                   <Route path="/collections" element={<CollectionsPage />} />
                   <Route path="/budgets" element={<ModuleRoute module="budgets"><BudgetsPage /></ModuleRoute>} />
                   <Route path="/goals" element={<ModuleRoute module="goals"><GoalsPage /></ModuleRoute>} />

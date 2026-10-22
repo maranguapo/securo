@@ -60,6 +60,7 @@ import { CommandPalette } from '@/components/command-palette'
 import { useCommandPaletteHotkey } from '@/hooks/use-command-palette-hotkey'
 import { GlobalChatPanel } from '@/components/global-chat-panel'
 import { useFeatureFlags } from '@/hooks/use-feature-flags'
+import { useAiReviewCount } from '@/hooks/use-ai-review-count'
 import { Bot, Plus, Search, Sparkles } from 'lucide-react'
 import { setThemeBasedOnSystem } from '@/lib/theme-utils'
 import { useLocalAuthEnabled } from '@/hooks/use-local-auth'
@@ -112,6 +113,7 @@ export function AppLayout() {
   useCommandPaletteHotkey(setPaletteOpen)
   const { agentsEnabled } = useFeatureFlags()
   const { hasModule, isLoading: workspaceLoading, canWrite } = useWorkspace()
+  const reviewCount = useAiReviewCount(agentsEnabled && hasModule('categories'))
   // The chat is offered only to members who can write. Sending a message
   // reaches a tool set that persists — `propose_create_transaction` and its
   // siblings — so the backend refuses it for a read-only role. Showing the
@@ -150,8 +152,8 @@ export function AppLayout() {
   // not a daily destination. Moved to the user menu (Change password,
   // 2FA, Backups, AI agents).
   const finalNavItems: NavItem[] = useMemo(
-    () => visibleNavItems(navItems, hasModule),
-    [hasModule],
+    () => visibleNavItems(navItems, hasModule, { agents: agentsEnabled }),
+    [hasModule, agentsEnabled],
   )
   const isMac =
     typeof navigator !== 'undefined' &&
@@ -460,6 +462,18 @@ export function AppLayout() {
                     )}
                   />
                   <span className={cn(desktopSidebarCollapsed && 'lg:hidden')}>{t(`nav.${item.key}`)}</span>
+                  {item.key === 'categorization' && reviewCount > 0 && (
+                    <span
+                      data-testid="review-badge"
+                      aria-label={t('categorization.badge', { count: reviewCount })}
+                      className={cn(
+                        'ml-auto rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-primary',
+                        desktopSidebarCollapsed && 'lg:hidden',
+                      )}
+                    >
+                      {reviewCount > 99 ? '99+' : reviewCount}
+                    </span>
+                  )}
                 </Link>
               )
               if (!showQuickAdd) return link
