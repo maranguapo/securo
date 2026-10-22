@@ -21,7 +21,7 @@ from app.models.ai_categorization import AiCategorization
 from app.models.category import Category
 from app.models.transaction import Transaction
 from app.models.workspace_ai_settings import WorkspaceAiSettings
-from app.services import integration_service, telegram_service
+from app.services import installment_groups, integration_service, telegram_service
 from app.telegram.client import TelegramClient, TelegramError
 
 logger = logging.getLogger(__name__)
@@ -46,6 +46,7 @@ _TEXT = {
         "cancel": "↩ Back",
         "category": "Category",
         "unsure": "no category — the AI wasn't sure",
+        "installments": "Applies to {n} more installment(s) of this purchase.",
         "confirmed": "confirmed",
         "changed": "changed",
         "more": "…and {n} more. They'll be in the next summary, or see them in the app.",
@@ -70,6 +71,7 @@ _TEXT = {
         "cancel": "↩ Voltar",
         "category": "Categoria",
         "unsure": "sem categoria — a IA não teve certeza",
+        "installments": "Vale também para mais {n} parcela(s) desta compra.",
         "confirmed": "confirmada",
         "changed": "alterada",
         "more": "…e mais {n}. Entram no próximo resumo, ou veja no app.",
@@ -137,6 +139,8 @@ class Item:
     row: AiCategorization
     transaction: Transaction
     category_name: Optional[str]
+    # Other parcels of the same purchase that share this answer.
+    siblings: int = 0
 
 
 def format_money(amount: float, currency: str, lang: str) -> str:
@@ -170,6 +174,8 @@ def render_item(item: Item, lang: str, *, state: Optional[str] = None) -> tuple[
     else:
         body = f"{t(lang, 'category')}: {t(lang, 'unsure')}"
     text = f"{first}\n{money}\n{body}"
+    if item.siblings:
+        text += f"\n{t(lang, 'installments', n=item.siblings)}"
     if state is not None:
         return text, None
 
@@ -231,7 +237,12 @@ async def load_item(
     name = None
     if tx.category_id is not None:
         name = await session.scalar(select(Category.name).where(Category.id == tx.category_id))
-    return Item(row=row, transaction=tx, category_name=name)
+    return Item(
+        row=row,
+        transaction=tx,
+        category_name=name,
+        siblings=await installment_groups.count_siblings(session, tx),
+    )
 
 
 async def _pending_items(session: AsyncSession, workspace_id: uuid.UUID) -> list[Item]:
@@ -268,7 +279,12 @@ async def _pending_items(session: AsyncSession, workspace_id: uuid.UUID) -> list
             row.status = "changed"
             continue
         items.append(
-            Item(row=row, transaction=tx, category_name=names.get(tx.category_id))
+            Item(
+                row=row,
+                transaction=tx,
+                category_name=names.get(tx.category_id),
+                siblings=await installment_groups.count_siblings(session, tx),
+            )
         )
     await session.flush()
     return items
@@ -431,10 +447,31 @@ async def choose(
     ).scalar_one_or_none()
     if category is None:
         return Outcome("gone")
+    previous = item.transaction.category_id
     item.transaction.category_id = category.id
     item.category_name = category.name
     same = category.id == item.row.suggested_category_id
-    _mark(item.row, user_id, "approved" if same else "changed")
+    status = "approved" if same else "changed"
+    _mark(item.row, user_id, status)
+
+    # The answer is about the purchase, so it reaches its other parcels. Only
+    # those that are empty or still carry what the model had put there: a
+    # parcel the user set to something else on purpose is left alone.
+    parcels = await installment_groups.siblings(session, item.transaction)
+    for parcel in parcels:
+        if parcel.category_id is None or parcel.category_id == previous:
+            parcel.category_id = category.id
+    if parcels:
+        followers = (
+            await session.execute(
+                select(AiCategorization).where(
+                    AiCategorization.transaction_id.in_([p.id for p in parcels]),
+                    AiCategorization.status.in_(("applied", "low_confidence")),
+                )
+            )
+        ).scalars()
+        for follower in followers:
+            _mark(follower, user_id, status)
     await session.commit()
     return Outcome("done", item, "confirmed" if same else "changed")
 

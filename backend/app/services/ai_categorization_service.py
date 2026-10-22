@@ -28,6 +28,7 @@ from app.models.ai_categorization import AiCategorization
 from app.models.category import Category
 from app.models.transaction import Transaction
 from app.models.workspace_ai_settings import WorkspaceAiSettings
+from app.services import installment_groups
 
 logger = logging.getLogger(__name__)
 
@@ -254,8 +255,15 @@ def _build_prompt(
     lines += ["", "Transactions:"]
     for i, tx in enumerate(batch, start=1):
         payee = f" | payee: {tx.payee}" if tx.payee else ""
+        # One parcel stands for the whole purchase; say so, so the model
+        # categorizes the purchase and not "a payment of this size".
+        parcel = (
+            f" | one of {tx.total_installments} installments of one purchase"
+            if installment_groups.group_key(tx) is not None
+            else ""
+        )
         lines.append(
-            f'{i}. "{tx.description.strip()[:_DESCRIPTION_LIMIT]}"{payee} | '
+            f'{i}. "{tx.description.strip()[:_DESCRIPTION_LIMIT]}"{payee}{parcel} | '
             f"{_signed_amount(tx):.2f} {tx.currency} | {tx.date.isoformat()}"
         )
     return "\n".join(lines)
@@ -301,6 +309,87 @@ def parse_suggestions(
     return out
 
 
+async def _plan_installments(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    pending: list[Transaction],
+    now: datetime,
+) -> tuple[list[Transaction], dict[uuid.UUID, list[Transaction]], int]:
+    """Collapse the parcels of one purchase into a single decision.
+
+    Returns (transactions to put to the model, {representative id: the other
+    pending parcels that will mirror its answer}, how many parcels were
+    categorized without asking at all).
+
+    - A purchase with a categorized parcel anywhere (the user's, or an earlier
+      run's) hands that category to the rest: no model call.
+    - A purchase whose representative the model was already unsure about
+      leaves the new parcels waiting on the user's choice, silently.
+    - Otherwise the earliest pending parcel represents the purchase.
+    """
+    pending_ids = {t.id for t in pending}
+    singles: list[Transaction] = []
+    groups: dict = {}
+    for tx in pending:
+        key = installment_groups.group_key(tx)
+        if key is None:
+            singles.append(tx)
+        else:
+            groups.setdefault(key, []).append(tx)
+
+    to_send = list(singles)
+    followers: dict[uuid.UUID, list[Transaction]] = {}
+    inherited = 0
+    for members in groups.values():
+        members.sort(key=lambda t: (t.installment_number or 0, t.date))
+        anchor = members[0]
+        outside = [
+            s for s in await installment_groups.siblings(session, anchor) if s.id not in pending_ids
+        ]
+
+        category_id = installment_groups.inherited_category(outside)
+        if category_id is not None:
+            result = await session.execute(
+                update(Transaction)
+                .where(
+                    Transaction.id.in_([m.id for m in members]),
+                    Transaction.workspace_id == workspace_id,
+                    Transaction.category_id.is_(None),
+                )
+                .values(category_id=category_id)
+            )
+            inherited += int(getattr(result, "rowcount", 0) or 0)
+            continue
+
+        unsure = (
+            await session.execute(
+                select(AiCategorization.id)
+                .where(
+                    AiCategorization.transaction_id.in_([s.id for s in outside]),
+                    AiCategorization.status == "low_confidence",
+                )
+                .limit(1)
+            )
+        ).first()
+        if unsure is not None:
+            for member in members:
+                session.add(
+                    AiCategorization(
+                        transaction_id=member.id,
+                        workspace_id=workspace_id,
+                        suggested_category_id=None,
+                        confidence=None,
+                        status="low_confidence",
+                        notified_at=now,
+                    )
+                )
+            continue
+
+        to_send.append(anchor)
+        followers[anchor.id] = members[1:]
+    return to_send, followers, inherited
+
+
 async def _record_and_apply(
     session: AsyncSession,
     workspace_id: uuid.UUID,
@@ -308,7 +397,11 @@ async def _record_and_apply(
     categories: list[Category],
     suggestions: dict[int, tuple[Optional[int], float]],
     min_confidence: float,
+    followers: Optional[dict[uuid.UUID, list[Transaction]]] = None,
+    now: Optional[datetime] = None,
 ) -> int:
+    followers = followers or {}
+    now = now or datetime.now(timezone.utc)
     applied = 0
     for position, tx in enumerate(batch, start=1):
         # A transaction the model left out of its answer is recorded as "not
@@ -335,16 +428,50 @@ async def _record_and_apply(
             if (getattr(result, "rowcount", 0) or 0) == 0:
                 continue
             applied += 1
+            # The other parcels of the purchase take the same category, whether
+            # or not they are in this run (later ones, or older than the
+            # look-back). Only empty ones: a parcel the user set stays.
+            empty = [
+                p.id
+                for p in await installment_groups.siblings(session, tx)
+                if p.category_id is None
+            ]
+            if empty:
+                shared = await session.execute(
+                    update(Transaction)
+                    .where(
+                        Transaction.id.in_(empty),
+                        Transaction.workspace_id == workspace_id,
+                        Transaction.category_id.is_(None),
+                    )
+                    .values(category_id=category.id)
+                )
+                applied += int(getattr(shared, "rowcount", 0) or 0)
 
+        status = "applied" if confident else "low_confidence"
         session.add(
             AiCategorization(
                 transaction_id=tx.id,
                 workspace_id=workspace_id,
                 suggested_category_id=category.id if category else None,
                 confidence=confidence,
-                status="applied" if confident else "low_confidence",
+                status=status,
             )
         )
+        # The rest of the purchase is on the ledger too, so it is never put to
+        # the model again, but already marked as sent: the digest asks about
+        # the purchase once, through the parcel that represents it.
+        for follower in followers.get(tx.id, []):
+            session.add(
+                AiCategorization(
+                    transaction_id=follower.id,
+                    workspace_id=workspace_id,
+                    suggested_category_id=category.id if category else None,
+                    confidence=confidence,
+                    status=status,
+                    notified_at=now,
+                )
+            )
     try:
         await session.commit()
     except IntegrityError:
@@ -383,11 +510,13 @@ async def categorize_pending(
         return 0
     examples = await _examples(session, workspace_id)
 
-    applied = 0
-    for i in range(0, len(pending), BATCH_SIZE):
+    to_send, followers, applied = await _plan_installments(session, workspace_id, pending, now)
+    await session.commit()
+
+    for i in range(0, len(to_send), BATCH_SIZE):
         if i:
             await asyncio.sleep(BATCH_DELAY_SECONDS)
-        batch = pending[i : i + BATCH_SIZE]
+        batch = to_send[i : i + BATCH_SIZE]
         messages = [
             ChatMessage(role="system", content=_SYSTEM_PROMPT),
             ChatMessage(role="user", content=_build_prompt(categories, examples, batch)),
@@ -421,6 +550,8 @@ async def categorize_pending(
             categories,
             suggestions,
             settings.min_confidence,
+            followers,
+            now,
         )
     return applied
 
