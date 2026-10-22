@@ -440,7 +440,18 @@ async def run_automation_now(
             status_code=400,
             detail="AI categorization needs the agents module (AGENTS_ENABLED=true).",
         )
+    limited = HTTPException(
+        status_code=429,
+        detail=(
+            "The AI provider is limiting requests (a free plan's quota, for example). "
+            "Categorization is paused for a while; try again in about 30 minutes."
+        ),
+    )
+    if await ai_categorization_service.is_paused(workspace_id):
+        raise limited
     count = await ai_categorization_service.categorize_pending(session, workspace_id)
+    if await ai_categorization_service.is_paused(workspace_id):
+        raise limited
     sent = 0
     settings = await ai_categorization_service.get_settings(session, workspace_id)
     if settings is not None and settings.digest_enabled:

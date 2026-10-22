@@ -10,6 +10,7 @@ examples. No notes, account data, e-mail or balances. Category ids never go
 to the model either: it answers with list positions, which are mapped back
 here, so it cannot invent an id.
 """
+import asyncio
 import json
 import logging
 import uuid
@@ -20,8 +21,9 @@ from sqlalchemy import exists, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.providers.base import ChatMessage, LLMError, LLMProvider
+from app.agents.providers.base import ChatMessage, LLMError, LLMProvider, LLMRateLimitError
 from app.agents.services import connection_service as llm_connections
+from app.core import redis as redis_core
 from app.models.ai_categorization import AiCategorization
 from app.models.category import Category
 from app.models.transaction import Transaction
@@ -36,6 +38,13 @@ BATCH_SIZE = 50
 # Bounds one run, so a large backlog is worked off over several runs.
 MAX_PER_RUN = 200
 MAX_EXAMPLES = 40
+# Free LLM tiers allow only a handful of requests a minute and a few hundred a
+# day. Batches are spaced out to stay under the per-minute cap, and a refusal
+# (or an unusable answer) pauses the workspace instead of being retried every
+# five minutes, which would burn the daily allowance on calls that cannot work.
+BATCH_DELAY_SECONDS = 7.0
+RATE_LIMIT_PAUSE_SECONDS = 30 * 60
+_PAUSE_KEY = "ai-categorization:pause:{workspace_id}"
 _DESCRIPTION_LIMIT = 120
 
 _SYSTEM_PROMPT = (
@@ -49,6 +58,26 @@ _SYSTEM_PROMPT = (
     "Negative amounts are money spent, positive amounts are money received. "
     "Follow the examples: they show this user's own conventions."
 )
+
+
+async def is_paused(workspace_id: uuid.UUID) -> bool:
+    """Whether this workspace is backing off after the model refused it."""
+    try:
+        redis = await redis_core.get_redis()
+        return bool(await redis.get(_PAUSE_KEY.format(workspace_id=workspace_id)))
+    except Exception:
+        # Redis being down must not stop categorization outright.
+        return False
+
+
+async def _pause(workspace_id: uuid.UUID) -> None:
+    try:
+        redis = await redis_core.get_redis()
+        await redis.set(
+            _PAUSE_KEY.format(workspace_id=workspace_id), "1", ex=RATE_LIMIT_PAUSE_SECONDS
+        )
+    except Exception:
+        logger.debug("Could not record the AI categorization pause", exc_info=True)
 
 
 async def get_settings(
@@ -282,10 +311,10 @@ async def _record_and_apply(
 ) -> int:
     applied = 0
     for position, tx in enumerate(batch, start=1):
-        suggestion = suggestions.get(position)
-        if suggestion is None:
-            # The model skipped it. Leave it unrecorded so a later run retries.
-            continue
+        # A transaction the model left out of its answer is recorded as "not
+        # sure" rather than retried: asking again every few minutes rarely
+        # changes the answer, and the digest lets the user pick the category.
+        suggestion = suggestions.get(position, (None, 0.0))
         category_position, confidence = suggestion
         category = categories[category_position - 1] if category_position else None
         confident = category is not None and confidence >= min_confidence
@@ -337,6 +366,8 @@ async def categorize_pending(
     settings = await get_settings(session, workspace_id)
     if settings is None or not settings.ai_categorization_enabled:
         return 0
+    if await is_paused(workspace_id):
+        return 0
     llm = await resolve_llm(session, settings)
     if llm is None:
         logger.warning("AI categorization on for workspace %s but no usable LLM", workspace_id)
@@ -354,6 +385,8 @@ async def categorize_pending(
 
     applied = 0
     for i in range(0, len(pending), BATCH_SIZE):
+        if i:
+            await asyncio.sleep(BATCH_DELAY_SECONDS)
         batch = pending[i : i + BATCH_SIZE]
         messages = [
             ChatMessage(role="system", content=_SYSTEM_PROMPT),
@@ -363,11 +396,24 @@ async def categorize_pending(
             response = await provider.chat(
                 messages, model=model, temperature=0.1, max_tokens=2000
             )
+        except LLMRateLimitError as exc:
+            logger.warning(
+                "AI categorization rate-limited for workspace %s; pausing %d min: %s",
+                workspace_id, RATE_LIMIT_PAUSE_SECONDS // 60, exc,
+            )
+            await _pause(workspace_id)
+            break
         except LLMError as exc:
             # Nothing is recorded, so the next run retries these.
             logger.warning("AI categorization stopped for workspace %s: %s", workspace_id, exc)
             break
         suggestions = parse_suggestions(response.content, len(batch), len(categories))
+        if not suggestions:
+            # Nothing usable in the answer. Retrying in five minutes would only
+            # spend more of the allowance on the same unusable reply.
+            logger.warning("AI categorization got an unusable answer for workspace %s", workspace_id)
+            await _pause(workspace_id)
+            break
         applied += await _record_and_apply(
             session,
             workspace_id,
@@ -386,4 +432,5 @@ __all__ = [
     "resolve_llm",
     "save_settings",
     "InvalidAutomationSettings",
+    "is_paused",
 ]

@@ -3,7 +3,7 @@ import re
 import uuid
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import AsyncClient
@@ -11,7 +11,8 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.models.connection import LlmConnection
-from app.agents.providers.base import ChatResponse, LLMUnavailableError
+from app.agents.providers.base import ChatResponse, LLMRateLimitError, LLMUnavailableError
+from app.core import redis as redis_core
 from app.models.ai_categorization import AiCategorization
 from app.models.transaction import Transaction
 from app.models.workspace_ai_settings import WorkspaceAiSettings
@@ -146,7 +147,13 @@ async def test_low_confidence_is_recorded_but_not_applied(
 
     assert applied == 0
     assert await _category_of(session, txs["NETFLIX"]) is None
-    row = (await session.execute(select(AiCategorization))).scalar_one()
+    row = (
+        await session.execute(
+            select(AiCategorization).where(
+                AiCategorization.transaction_id == txs["NETFLIX"].id
+            )
+        )
+    ).scalar_one()
     assert row.status == "low_confidence"
     assert row.suggested_category_id == test_categories[0].id
 
@@ -556,3 +563,151 @@ async def test_run_now_categorizes_immediately(
 
     assert resp.status_code == 200, resp.text
     assert resp.json() == {"categorized": 1, "digest_sent": 0}
+
+
+# ---------------------------------------------------------------------------
+# Backing off: a free plan's quota must not be spent on calls that cannot work
+# ---------------------------------------------------------------------------
+class _FakeRedis:
+    def __init__(self):
+        self.data: dict[str, str] = {}
+
+    async def get(self, key):
+        return self.data.get(key)
+
+    async def set(self, key, value, ex=None):
+        self.data[key] = str(value)
+
+    async def delete(self, key):
+        self.data.pop(key, None)
+
+
+@pytest.fixture
+def pause_store():
+    redis = _FakeRedis()
+    with patch.object(redis_core, "get_redis", AsyncMock(return_value=redis)):
+        yield redis
+
+
+@pytest.fixture(autouse=True)
+def _no_batch_delay():
+    with patch.object(svc, "BATCH_DELAY_SECONDS", 0):
+        yield
+
+
+@pytest.mark.asyncio
+async def test_a_rate_limit_pauses_the_workspace_instead_of_retrying_in_five_minutes(
+    session: AsyncSession, pause_store, test_user, test_workspace, test_categories,
+    test_transactions, use_provider,
+):
+    await _enable(session, test_user, test_workspace)
+    refused = FakeProvider(error=LLMRateLimitError("429 quota exceeded", status=429))
+
+    with use_provider(refused):
+        assert await svc.categorize_pending(session, test_workspace.id) == 0
+        # The next scheduled run does not even ask.
+        assert await svc.categorize_pending(session, test_workspace.id) == 0
+    assert len(refused.calls) == 1
+    assert await svc.is_paused(test_workspace.id) is True
+    assert (await session.execute(select(AiCategorization))).scalars().all() == []
+
+    # Once the pause has run out, the same transactions are tried again.
+    pause_store.data.clear()
+    with use_provider(FakeProvider({"NETFLIX": ("Alimentação", 0.9)})):
+        assert await svc.categorize_pending(session, test_workspace.id) == 1
+
+
+@pytest.mark.asyncio
+async def test_other_provider_errors_do_not_pause(
+    session: AsyncSession, pause_store, test_user, test_workspace, test_categories,
+    test_transactions, use_provider,
+):
+    await _enable(session, test_user, test_workspace)
+
+    with use_provider(FakeProvider(error=LLMUnavailableError("503"))):
+        await svc.categorize_pending(session, test_workspace.id)
+
+    assert await svc.is_paused(test_workspace.id) is False
+
+
+@pytest.mark.asyncio
+async def test_an_unusable_answer_pauses_instead_of_being_asked_again(
+    session: AsyncSession, pause_store, test_user, test_workspace, test_categories,
+    test_transactions, use_provider,
+):
+    await _enable(session, test_user, test_workspace)
+    junk = FakeProvider(raw="Sorry, I can't help with that.")
+
+    with use_provider(junk):
+        await svc.categorize_pending(session, test_workspace.id)
+        await svc.categorize_pending(session, test_workspace.id)
+
+    assert len(junk.calls) == 1
+    assert await svc.is_paused(test_workspace.id) is True
+
+
+@pytest.mark.asyncio
+async def test_a_transaction_the_model_skips_is_recorded_not_retried_forever(
+    session: AsyncSession, pause_store, test_user, test_workspace, test_categories,
+    test_transactions, use_provider,
+):
+    await _enable(session, test_user, test_workspace)
+    provider = FakeProvider({"NETFLIX": ("Alimentação", 0.9)})  # says nothing of PIX RECEBIDO
+
+    with use_provider(provider):
+        await svc.categorize_pending(session, test_workspace.id)
+        await svc.categorize_pending(session, test_workspace.id)
+
+    assert len(provider.calls) == 1
+    by_status = {
+        r.status: r for r in (await session.execute(select(AiCategorization))).scalars()
+    }
+    assert set(by_status) == {"applied", "low_confidence"}
+    assert by_status["low_confidence"].suggested_category_id is None
+
+
+@pytest.mark.asyncio
+async def test_batches_are_spaced_out_to_respect_per_minute_limits(
+    session: AsyncSession, pause_store, test_user, test_workspace, test_categories,
+    test_transactions, use_provider,
+):
+    await _enable(session, test_user, test_workspace)
+    provider = FakeProvider({"NETFLIX": ("Alimentação", 0.9), "PIX RECEBIDO": ("Receita", 0.9)})
+    pauses: list[float] = []
+
+    async def record_sleep(seconds):
+        pauses.append(seconds)
+
+    with use_provider(provider), patch.object(svc, "BATCH_SIZE", 1), patch.object(
+        svc, "BATCH_DELAY_SECONDS", 7.0
+    ), patch.object(svc.asyncio, "sleep", record_sleep):
+        await svc.categorize_pending(session, test_workspace.id)
+
+    assert len(provider.calls) == 2
+    assert pauses == [7.0]  # between the two batches, not before the first
+
+
+@pytest.mark.asyncio
+async def test_is_paused_is_false_when_redis_is_down():
+    broken = AsyncMock(side_effect=ConnectionError("redis down"))
+    with patch.object(redis_core, "get_redis", broken):
+        assert await svc.is_paused(uuid.uuid4()) is False
+
+
+@pytest.mark.asyncio
+async def test_run_now_tells_the_owner_when_the_provider_is_limiting(
+    client: AsyncClient, auth_headers, pause_store, test_workspace, test_user,
+    test_categories, test_transactions, session: AsyncSession, use_provider,
+):
+    await _enable(session, test_user, test_workspace)
+
+    with use_provider(FakeProvider(error=LLMRateLimitError("quota", status=429))):
+        first = await client.post(_url(test_workspace.id, "automation/run-now"), headers=auth_headers)
+    # Already paused: answered at once, without calling the model again.
+    provider = FakeProvider({"NETFLIX": ("Alimentação", 0.9)})
+    with use_provider(provider):
+        second = await client.post(_url(test_workspace.id, "automation/run-now"), headers=auth_headers)
+
+    assert first.status_code == 429 and "limiting" in first.json()["detail"]
+    assert second.status_code == 429
+    assert provider.calls == []
