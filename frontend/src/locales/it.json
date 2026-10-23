@@ -950,6 +950,22 @@
       "paceOver": "{{amount}} over the limit",
       "paceNoReference": "Set a budget to track your pace"
     },
+    "cards": {
+      "title": "Credit cards",
+      "usage": "{{pct}}% of {{limit}} limit used",
+      "dueIn": "Due in {{days}} d",
+      "dueToday": "Due today",
+      "overdue": "Due date passed",
+      "closesIn": "Closes in {{days}} d"
+    },
+    "commitments": {
+      "title": "Committed income",
+      "caption": "{{amount}} already tied up in recurring bills and installments",
+      "captionNoIncome": "tied up in recurring bills and installments",
+      "fixed": "Fixed",
+      "variable": "Variable",
+      "left": "Left"
+    },
     "spendingProjection": "A questo ritmo, spenderai {{amount}} entro fine mese",
     "uncategorizedCta": "{{count}} transazioni da categorizzare",
     "uncategorizedTotal": "{{amount}} in totale",

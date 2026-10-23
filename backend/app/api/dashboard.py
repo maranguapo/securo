@@ -7,8 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_async_session
 from app.core.workspace_context import WorkspaceContext, current_workspace
-from app.schemas.dashboard import DashboardSummary, SpendingByCategory, MonthlyTrend, ProjectedTransaction, BalanceHistory, MonthOutlook
-from app.services import dashboard_service, month_outlook_service
+from app.schemas.dashboard import DashboardSummary, SpendingByCategory, MonthlyTrend, ProjectedTransaction, BalanceHistory, MonthOutlook, Commitments
+from app.services import commitments_service, dashboard_service, month_outlook_service
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
@@ -96,6 +96,18 @@ async def get_month_outlook(
     session: AsyncSession = Depends(get_async_session),
 ):
     return await month_outlook_service.get_month_outlook(
+        session, ctx.workspace.id, ctx.user_id, month, account_ids
+    )
+
+
+@router.get("/commitments", response_model=Commitments)
+async def get_commitments(
+    month: Optional[date] = Query(None),
+    account_ids: Optional[list[uuid.UUID]] = Query(None),
+    ctx: WorkspaceContext = Depends(current_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    return await commitments_service.get_commitments(
         session, ctx.workspace.id, ctx.user_id, month, account_ids
     )
 

@@ -950,6 +950,22 @@
       "paceOver": "{{amount}} acima do limite",
       "paceNoReference": "Defina um orçamento para acompanhar o ritmo"
     },
+    "cards": {
+      "title": "Cartões de crédito",
+      "usage": "{{pct}}% do limite de {{limit}} usado",
+      "dueIn": "Vence em {{days}} d",
+      "dueToday": "Vence hoje",
+      "overdue": "Vencimento passou",
+      "closesIn": "Fecha em {{days}} d"
+    },
+    "commitments": {
+      "title": "Renda comprometida",
+      "caption": "{{amount}} já comprometidos com recorrências e parcelas",
+      "captionNoIncome": "comprometidos com recorrências e parcelas",
+      "fixed": "Fixo",
+      "variable": "Variável",
+      "left": "Sobra"
+    },
     "spendingProjection": "Nesse ritmo, você gastará {{amount}} até o fim do mês",
     "uncategorizedCta": "{{count}} transações precisam ser categorizadas",
     "uncategorizedTotal": "{{amount}} no total",
