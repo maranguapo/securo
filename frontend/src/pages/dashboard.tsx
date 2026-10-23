@@ -60,6 +60,7 @@ import { formatCurrency } from '@/lib/format'
 import { MonthOutlook } from '@/components/month-outlook'
 import { CardsOverview } from '@/components/cards-overview'
 import { CommitmentsCard } from '@/components/commitments-card'
+import { DashboardInsights } from '@/components/dashboard-insights'
 import { shouldShowPendingBadge } from '@/lib/transaction-status'
 
 function formatDate(dateStr: string, locale = 'pt-BR') {
@@ -1183,6 +1184,15 @@ export default function DashboardPage() {
           })()}
         </div>
       </div>
+
+      <DashboardInsights
+        month={monthParam}
+        accountIds={acctIds}
+        locale={locale}
+        dateLocale={dateLocale}
+        currency={primaryCurrency}
+        mask={mask}
+      />
 
       {/* Goals Progress Widget */}
       {goalsSummary && goalsSummary.length > 0 && (

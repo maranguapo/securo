@@ -966,6 +966,66 @@
       "variable": "Variável",
       "left": "Sobra"
     },
+    "insights": {
+      "title": "Análises",
+      "trend": {
+        "title": "Tendência de 12 meses",
+        "savingsRate": "Taxa de poupança"
+      },
+      "installments": {
+        "title": "Parcelas a vencer",
+        "caption": "{{purchases}} compras ativas · a última termina em {{month}}"
+      },
+      "variance": {
+        "title": "Onde o gasto mudou",
+        "caption": "Mês até hoje vs. a média dos {{months}} meses anteriores",
+        "new": "novo"
+      },
+      "reserve": {
+        "title": "Reserva de emergência",
+        "months": "{{months}} meses",
+        "caption": "{{liquid}} em caixa e investimentos · gasto médio de {{avg}}/mês",
+        "fixedOnly": "{{months}} meses cobrindo só os compromissos fixos"
+      },
+      "goals": {
+        "title": "Ritmo das metas",
+        "pace": "Guardando {{actual}}/mês · precisa de {{required}}/mês",
+        "paceNoDate": "Guardando {{actual}}/mês",
+        "projected": "previsto para {{date}}"
+      },
+      "payees": {
+        "title": "Maiores destinos do mês",
+        "new": "novo"
+      },
+      "subscriptions": {
+        "title": "Assinaturas e recorrências",
+        "yearly": "{{amount}} por ano"
+      },
+      "investments": {
+        "title": "Investimentos",
+        "realized": "Ganho realizado: {{amount}}"
+      },
+      "anomalies": {
+        "title": "Vale conferir",
+        "duplicate": "possível cobrança em duplicidade",
+        "unusual": "valor alto para {{category}} (o normal é {{typical}})"
+      },
+      "weekday": {
+        "title": "Gastos por dia da semana",
+        "caption": "Média por dia, últimos {{days}} dias"
+      },
+      "health": {
+        "title": "Saúde financeira",
+        "savings3m": "Taxa de poupança (3 meses)",
+        "dailyExpense": "Gasto médio por dia",
+        "fixedCoverage": "Renda vs. compromissos fixos",
+        "concentration": "Peso das 3 maiores categorias",
+        "netWorth30d": "Patrimônio, últimos 30 dias",
+        "netWorth12m": "Patrimônio, últimos 12 meses",
+        "cardDebt": "Dívida de cartão vs. renda mensal",
+        "aiShare": "Categorizado pela IA (90 dias)"
+      }
+    },
     "spendingProjection": "Nesse ritmo, você gastará {{amount}} até o fim do mês",
     "uncategorizedCta": "{{count}} transações precisam ser categorizadas",
     "uncategorizedTotal": "{{amount}} no total",

@@ -964,6 +964,66 @@
       "variable": "Variable",
       "left": "Left"
     },
+    "insights": {
+      "title": "Insights",
+      "trend": {
+        "title": "12-month trend",
+        "savingsRate": "Savings rate"
+      },
+      "installments": {
+        "title": "Installments ahead",
+        "caption": "{{purchases}} active purchases · last one ends {{month}}"
+      },
+      "variance": {
+        "title": "Where spending changed",
+        "caption": "Month to date vs. the average of the previous {{months}} months",
+        "new": "new"
+      },
+      "reserve": {
+        "title": "Emergency fund",
+        "months": "{{months}} months",
+        "caption": "{{liquid}} in cash and investments · {{avg}}/month average spend",
+        "fixedOnly": "{{months}} months covering fixed commitments only"
+      },
+      "goals": {
+        "title": "Goals pace",
+        "pace": "Saving {{actual}}/month · needs {{required}}/month",
+        "paceNoDate": "Saving {{actual}}/month",
+        "projected": "on track for {{date}}"
+      },
+      "payees": {
+        "title": "Top payees this month",
+        "new": "new"
+      },
+      "subscriptions": {
+        "title": "Subscriptions and recurring",
+        "yearly": "{{amount}} per year"
+      },
+      "investments": {
+        "title": "Investments",
+        "realized": "Realized gains: {{amount}}"
+      },
+      "anomalies": {
+        "title": "Worth a look",
+        "duplicate": "possible duplicate charge",
+        "unusual": "unusually high for {{category}} (typically {{typical}})"
+      },
+      "weekday": {
+        "title": "Spending by weekday",
+        "caption": "Average per day, last {{days}} days"
+      },
+      "health": {
+        "title": "Financial health",
+        "savings3m": "Savings rate (3 months)",
+        "dailyExpense": "Average daily spending",
+        "fixedCoverage": "Income vs. fixed commitments",
+        "concentration": "Top 3 categories share of spend",
+        "netWorth30d": "Net worth, last 30 days",
+        "netWorth12m": "Net worth, last 12 months",
+        "cardDebt": "Card debt vs. monthly income",
+        "aiShare": "Categorized by AI (90 days)"
+      }
+    },
     "spendingProjection": "इस रफ़्तार से, आप महीने के अंत तक {{amount}} खर्च करेंगे",
     "uncategorizedCta": "{{count}} लेन-देन को वर्गीकृत करना है",
     "uncategorizedTotal": "कुल {{amount}}",
