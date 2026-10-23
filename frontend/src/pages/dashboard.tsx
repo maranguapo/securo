@@ -57,6 +57,7 @@ import { useCollectionFilter } from '@/contexts/collection-filter-context'
 import { resolveDateFnsLocale } from '@/lib/date-fns-locale'
 import type { Rule, Transaction } from '@/types'
 import { formatCurrency } from '@/lib/format'
+import { MonthOutlook } from '@/components/month-outlook'
 import { shouldShowPendingBadge } from '@/lib/transaction-status'
 
 function formatDate(dateStr: string, locale = 'pt-BR') {
@@ -271,6 +272,12 @@ export default function DashboardPage() {
     queryKey: ['payees'],
     queryFn: payeesApi.list,
   })
+
+  const { data: monthOutlook, isLoading: monthOutlookLoading } = useQuery({
+    queryKey: ['dashboard', 'month-outlook', selectedMonth, activeAccountIds],
+    queryFn: () => dashboard.monthOutlook(monthParam, acctIds),
+  })
+
 
   const { data: goalsSummary } = useQuery({
     queryKey: ['goals', 'summary'],
@@ -864,6 +871,14 @@ export default function DashboardPage() {
           </p>
         )}
       </div>
+
+      <MonthOutlook
+        data={monthOutlook}
+        isLoading={monthOutlookLoading}
+        locale={locale}
+        dateLocale={dateLocale}
+        mask={mask}
+      />
 
       {/* Uncategorized banner */}
       {!summaryLoading && (

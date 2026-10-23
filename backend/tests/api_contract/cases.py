@@ -134,6 +134,7 @@ DELIBERATE_500: dict[tuple[str, str], str] = {
 POSTGRES_ONLY: dict[tuple[str, str], str] = {
     ("GET", "/api/reports/income-expenses"): "to_char() is Postgres-only",
     ("GET", "/api/dashboard/monthly-trend"): "to_char() is Postgres-only",
+    ("GET", "/api/dashboard/month-outlook"): "reads get_monthly_trend, which uses to_char()",
 }
 
 

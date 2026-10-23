@@ -7,8 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_async_session
 from app.core.workspace_context import WorkspaceContext, current_workspace
-from app.schemas.dashboard import DashboardSummary, SpendingByCategory, MonthlyTrend, ProjectedTransaction, BalanceHistory
-from app.services import dashboard_service
+from app.schemas.dashboard import DashboardSummary, SpendingByCategory, MonthlyTrend, ProjectedTransaction, BalanceHistory, MonthOutlook
+from app.services import dashboard_service, month_outlook_service
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
@@ -86,3 +86,16 @@ async def get_projected_transactions(
     except ValueError as exc:
         from fastapi import HTTPException
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.get("/month-outlook", response_model=MonthOutlook)
+async def get_month_outlook(
+    month: Optional[date] = Query(None),
+    account_ids: Optional[list[uuid.UUID]] = Query(None),
+    ctx: WorkspaceContext = Depends(current_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    return await month_outlook_service.get_month_outlook(
+        session, ctx.workspace.id, ctx.user_id, month, account_ids
+    )
+

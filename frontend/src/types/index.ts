@@ -1904,3 +1904,31 @@ export interface AiRuleResult {
   rule_name: string
   applied: number
 }
+
+export interface SafeToSpend {
+  available_now: number
+  upcoming_income: number
+  upcoming_expenses: number
+  card_bills_due: number
+  safe_to_spend: number
+  days_left: number
+  daily_allowance: number | null
+}
+
+export interface SpendPace {
+  spent: number
+  reference: 'budget' | 'average' | null
+  reference_amount: number | null
+  projected_month_end: number | null
+  status: 'on_track' | 'warning' | 'over' | 'no_reference'
+  exhaustion_date: string | null
+  days_elapsed: number
+  days_in_month: number
+}
+
+export interface MonthOutlook {
+  primary_currency: string
+  is_current_month: boolean
+  safe_to_spend: SafeToSpend | null
+  pace: SpendPace | null
+}
