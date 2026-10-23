@@ -141,6 +141,7 @@ async def _get_recurring_projections(
             if (rec.id, occ_date) in materialized_occurrences:
                 continue
             projections.append({
+                "description": rec.description,
                 "category_id": rec.category_id,
                 "amount": float(rec.amount),
                 "type": rec.type,

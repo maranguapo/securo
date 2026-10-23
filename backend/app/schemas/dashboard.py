@@ -102,3 +102,19 @@ class MonthOutlook(BaseModel):
     safe_to_spend: Optional[SafeToSpend] = None
     pace: Optional[SpendPace] = None
 
+
+class CommitmentItem(BaseModel):
+    description: str
+    amount: float  # primary currency, summed over the month
+    kind: str  # "recurring" | "installment"
+    installment: Optional[str] = None  # "3/12" for the latest installment seen this month
+
+
+class Commitments(BaseModel):
+    """Fixed outflows of a month: recurring rules plus installment purchases."""
+    primary_currency: str
+    recurring_total: float
+    installments_total: float
+    fixed_total: float
+    items: list[CommitmentItem]  # largest first, capped
+

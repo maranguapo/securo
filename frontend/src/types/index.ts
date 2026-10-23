@@ -1932,3 +1932,18 @@ export interface MonthOutlook {
   safe_to_spend: SafeToSpend | null
   pace: SpendPace | null
 }
+
+export interface CommitmentItem {
+  description: string
+  amount: number
+  kind: 'recurring' | 'installment'
+  installment: string | null
+}
+
+export interface Commitments {
+  primary_currency: string
+  recurring_total: number
+  installments_total: number
+  fixed_total: number
+  items: CommitmentItem[]
+}

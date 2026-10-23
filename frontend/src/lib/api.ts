@@ -90,6 +90,7 @@ import type {
   SpendingByCategory,
   MonthlyTrend,
   MonthOutlook,
+  Commitments,
   BalanceHistory,
   PaginatedTransactions,
   ReportResponse,
@@ -1413,6 +1414,11 @@ export const dashboard = {
   },
   projectedTransactions: async (params?: { month?: string; account_id?: string; from?: string; to?: string }): Promise<ProjectedTransaction[]> => {
     const { data } = await api.get('/dashboard/projected-transactions', { params })
+    return data
+  },
+  commitments: async (month?: string, accountIds?: string[]): Promise<Commitments> => {
+    const extra = acctIdsParam(accountIds)
+    const { data } = await api.get('/dashboard/commitments', { params: { month, ...(extra.params ?? {}) }, ...(extra.paramsSerializer ? { paramsSerializer: extra.paramsSerializer } : {}) })
     return data
   },
   monthOutlook: async (month?: string, accountIds?: string[]): Promise<MonthOutlook> => {

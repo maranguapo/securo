@@ -58,6 +58,8 @@ import { resolveDateFnsLocale } from '@/lib/date-fns-locale'
 import type { Rule, Transaction } from '@/types'
 import { formatCurrency } from '@/lib/format'
 import { MonthOutlook } from '@/components/month-outlook'
+import { CardsOverview } from '@/components/cards-overview'
+import { CommitmentsCard } from '@/components/commitments-card'
 import { shouldShowPendingBadge } from '@/lib/transaction-status'
 
 function formatDate(dateStr: string, locale = 'pt-BR') {
@@ -278,6 +280,10 @@ export default function DashboardPage() {
     queryFn: () => dashboard.monthOutlook(monthParam, acctIds),
   })
 
+  const { data: commitments, isLoading: commitmentsLoading } = useQuery({
+    queryKey: ['dashboard', 'commitments', selectedMonth, activeAccountIds],
+    queryFn: () => dashboard.commitments(monthParam, acctIds),
+  })
 
   const { data: goalsSummary } = useQuery({
     queryKey: ['goals', 'summary'],
@@ -879,6 +885,24 @@ export default function DashboardPage() {
         dateLocale={dateLocale}
         mask={mask}
       />
+
+      {(!!accountsList?.some((a) => a.type === 'credit_card' && !a.is_closed) || commitmentsLoading || (commitments?.fixed_total ?? 0) > 0) && (
+        <div className="grid gap-5 lg:grid-cols-2 mb-5">
+          <CardsOverview
+            accounts={(accountsList ?? []).filter((a) => (activeAccountIds ? activeAccountIds.includes(a.id) : true))}
+            locale={locale}
+            mask={mask}
+          />
+          <CommitmentsCard
+            data={commitments}
+            isLoading={commitmentsLoading}
+            income={projectedIncome}
+            expenses={projectedExpenses}
+            locale={locale}
+            mask={mask}
+          />
+        </div>
+      )}
 
       {/* Uncategorized banner */}
       {!summaryLoading && (

@@ -950,6 +950,22 @@
       "paceOver": "{{amount}} por encima del límite",
       "paceNoReference": "Define un presupuesto para seguir tu ritmo"
     },
+    "cards": {
+      "title": "Tarjetas de crédito",
+      "usage": "{{pct}}% del límite de {{limit}} usado",
+      "dueIn": "Vence en {{days}} d",
+      "dueToday": "Vence hoy",
+      "overdue": "Vencimiento pasado",
+      "closesIn": "Cierra en {{days}} d"
+    },
+    "commitments": {
+      "title": "Ingresos comprometidos",
+      "caption": "{{amount}} ya comprometidos en recurrentes y cuotas",
+      "captionNoIncome": "comprometidos en recurrentes y cuotas",
+      "fixed": "Fijo",
+      "variable": "Variable",
+      "left": "Resto"
+    },
     "spendingProjection": "A este ritmo, gastarás {{amount}} para fin de mes",
     "uncategorizedCta": "{{count}} transacciones necesitan categorización",
     "uncategorizedTotal": "{{amount}} en total",
