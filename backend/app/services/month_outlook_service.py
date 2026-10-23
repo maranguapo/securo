@@ -212,7 +212,7 @@ async def _spend_pace(
     # those; the average compares total spend against total spend.
     if budgeted:
         reference = "budget"
-        limit = float(sum(b.budget_amount for b in budgeted))
+        limit = sum(float(b.budget_amount or 0) for b in budgeted)
         spent = float(sum(b.actual_amount for b in budgeted))
     elif prior:
         reference = "average"
