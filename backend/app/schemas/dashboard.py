@@ -72,3 +72,33 @@ class ProjectedTransaction(BaseModel):
     category_name: Optional[str]
     category_icon: Optional[str]
     category_color: Optional[str] = None
+
+
+class SafeToSpend(BaseModel):
+    """What is left to spend until the end of the month, in primary currency."""
+    available_now: float  # checking + savings today
+    upcoming_income: float  # recurring, pending and invoice credits still due this month
+    upcoming_expenses: float  # recurring, pending and invoice debits still due this month
+    card_bills_due: float  # card bills due before month end (capped at the debt)
+    safe_to_spend: float  # available + income - expenses - card bills
+    days_left: int  # days from today until the next month starts
+    daily_allowance: Optional[float] = None  # safe_to_spend per remaining day; None when nothing is left
+
+
+class SpendPace(BaseModel):
+    spent: float
+    reference: Optional[str]  # "budget" | "average" | None
+    reference_amount: Optional[float]
+    projected_month_end: Optional[float]  # linear projection at the current daily rate
+    status: str  # on_track | warning | over | no_reference
+    exhaustion_date: Optional[str]  # YYYY-MM-DD the reference runs out, when before month end
+    days_elapsed: int
+    days_in_month: int
+
+
+class MonthOutlook(BaseModel):
+    primary_currency: str
+    is_current_month: bool
+    safe_to_spend: Optional[SafeToSpend] = None
+    pace: Optional[SpendPace] = None
+
