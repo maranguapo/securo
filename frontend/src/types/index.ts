@@ -1947,3 +1947,106 @@ export interface Commitments {
   fixed_total: number
   items: CommitmentItem[]
 }
+
+export interface InstallmentsOutlook {
+  primary_currency: string
+  remaining_total: number
+  active_purchases: number
+  last_month: string | null
+  timeline: { month: string; amount: number }[]
+}
+
+export interface CategoryVariance {
+  category_id: string | null
+  category_name: string
+  category_icon: string
+  category_color: string
+  current: number
+  average: number
+  delta: number
+  delta_pct: number | null
+}
+
+export interface CategoryVarianceReport {
+  primary_currency: string
+  reference_months: number
+  increases: CategoryVariance[]
+  decreases: CategoryVariance[]
+}
+
+export interface EmergencyFund {
+  primary_currency: string
+  liquid_total: number
+  avg_monthly_expenses: number
+  months_covered: number | null
+  fixed_monthly: number
+  months_covered_fixed: number | null
+}
+
+export interface GoalPace {
+  id: string
+  name: string
+  currency: string
+  icon: string | null
+  color: string | null
+  percentage: number
+  remaining: number
+  target_date: string | null
+  required_monthly: number | null
+  actual_monthly: number
+  projected_date: string | null
+  on_track: string | null
+}
+
+export interface TopPayees {
+  primary_currency: string
+  total_spent: number
+  items: { name: string; total: number; count: number; is_new: boolean }[]
+}
+
+export interface Subscriptions {
+  primary_currency: string
+  monthly_total: number
+  yearly_total: number
+  items: { description: string; monthly_cost: number; frequency: string; price_change_pct: number | null }[]
+}
+
+export interface InvestmentsSummary {
+  primary_currency: string
+  total_value: number
+  total_cost: number
+  unrealized_gain: number
+  unrealized_pct: number | null
+  realized_gain: number
+  allocation: { name: string; value: number }[]
+}
+
+export interface DashboardAnomaly {
+  kind: 'unusual_amount' | 'possible_duplicate'
+  transaction_id: string
+  description: string
+  amount: number
+  date: string
+  category_name: string | null
+  detail: number | null
+}
+
+export interface SpendingByWeekday {
+  primary_currency: string
+  days: number
+  items: { weekday: number; total: number; average: number }[]
+}
+
+export interface HealthMetrics {
+  primary_currency: string
+  savings_rate_3m: number | null
+  avg_daily_expense: number | null
+  fixed_coverage: number | null
+  top3_concentration: number | null
+  net_worth_change_30d: number | null
+  net_worth_change_30d_pct: number | null
+  net_worth_change_12m: number | null
+  net_worth_change_12m_pct: number | null
+  card_debt_to_income: number | null
+  ai_categorized_pct: number | null
+}

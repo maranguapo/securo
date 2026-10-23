@@ -966,6 +966,66 @@
       "variable": "Variable",
       "left": "Resto"
     },
+    "insights": {
+      "title": "Análisis",
+      "trend": {
+        "title": "Tendencia de 12 meses",
+        "savingsRate": "Tasa de ahorro"
+      },
+      "installments": {
+        "title": "Cuotas pendientes",
+        "caption": "{{purchases}} compras activas · la última termina en {{month}}"
+      },
+      "variance": {
+        "title": "Dónde cambió el gasto",
+        "caption": "Mes hasta hoy vs. el promedio de los {{months}} meses anteriores",
+        "new": "nuevo"
+      },
+      "reserve": {
+        "title": "Fondo de emergencia",
+        "months": "{{months}} meses",
+        "caption": "{{liquid}} en efectivo e inversiones · gasto medio de {{avg}}/mes",
+        "fixedOnly": "{{months}} meses cubriendo solo los compromisos fijos"
+      },
+      "goals": {
+        "title": "Ritmo de metas",
+        "pace": "Ahorrando {{actual}}/mes · necesita {{required}}/mes",
+        "paceNoDate": "Ahorrando {{actual}}/mes",
+        "projected": "previsto para {{date}}"
+      },
+      "payees": {
+        "title": "Mayores destinos del mes",
+        "new": "nuevo"
+      },
+      "subscriptions": {
+        "title": "Suscripciones y recurrentes",
+        "yearly": "{{amount}} al año"
+      },
+      "investments": {
+        "title": "Inversiones",
+        "realized": "Ganancia realizada: {{amount}}"
+      },
+      "anomalies": {
+        "title": "Conviene revisar",
+        "duplicate": "posible cargo duplicado",
+        "unusual": "monto alto para {{category}} (lo normal es {{typical}})"
+      },
+      "weekday": {
+        "title": "Gasto por día de la semana",
+        "caption": "Promedio por día, últimos {{days}} días"
+      },
+      "health": {
+        "title": "Salud financiera",
+        "savings3m": "Tasa de ahorro (3 meses)",
+        "dailyExpense": "Gasto medio diario",
+        "fixedCoverage": "Ingresos vs. compromisos fijos",
+        "concentration": "Peso de las 3 mayores categorías",
+        "netWorth30d": "Patrimonio, últimos 30 días",
+        "netWorth12m": "Patrimonio, últimos 12 meses",
+        "cardDebt": "Deuda de tarjeta vs. ingreso mensual",
+        "aiShare": "Categorizado por IA (90 días)"
+      }
+    },
     "spendingProjection": "A este ritmo, gastarás {{amount}} para fin de mes",
     "uncategorizedCta": "{{count}} transacciones necesitan categorización",
     "uncategorizedTotal": "{{amount}} en total",

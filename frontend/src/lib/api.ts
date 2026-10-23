@@ -91,6 +91,16 @@ import type {
   MonthlyTrend,
   MonthOutlook,
   Commitments,
+  InstallmentsOutlook,
+  CategoryVarianceReport,
+  EmergencyFund,
+  GoalPace,
+  TopPayees,
+  Subscriptions,
+  InvestmentsSummary,
+  DashboardAnomaly,
+  SpendingByWeekday,
+  HealthMetrics,
   BalanceHistory,
   PaginatedTransactions,
   ReportResponse,
@@ -1419,6 +1429,48 @@ export const dashboard = {
   commitments: async (month?: string, accountIds?: string[]): Promise<Commitments> => {
     const extra = acctIdsParam(accountIds)
     const { data } = await api.get('/dashboard/commitments', { params: { month, ...(extra.params ?? {}) }, ...(extra.paramsSerializer ? { paramsSerializer: extra.paramsSerializer } : {}) })
+    return data
+  },
+  installments: async (accountIds?: string[]): Promise<InstallmentsOutlook> => {
+    const extra = acctIdsParam(accountIds)
+    const { data } = await api.get('/dashboard/installments', extra)
+    return data
+  },
+  categoryVariance: async (accountIds?: string[]): Promise<CategoryVarianceReport> => {
+    const { data } = await api.get('/dashboard/category-variance', acctIdsParam(accountIds))
+    return data
+  },
+  emergencyFund: async (accountIds?: string[]): Promise<EmergencyFund> => {
+    const { data } = await api.get('/dashboard/emergency-fund', acctIdsParam(accountIds))
+    return data
+  },
+  goalsPace: async (): Promise<GoalPace[]> => {
+    const { data } = await api.get('/dashboard/goals-pace')
+    return data
+  },
+  topPayees: async (month?: string, accountIds?: string[]): Promise<TopPayees> => {
+    const extra = acctIdsParam(accountIds)
+    const { data } = await api.get('/dashboard/top-payees', { params: { month, ...(extra.params ?? {}) }, ...(extra.paramsSerializer ? { paramsSerializer: extra.paramsSerializer } : {}) })
+    return data
+  },
+  subscriptions: async (): Promise<Subscriptions> => {
+    const { data } = await api.get('/dashboard/subscriptions')
+    return data
+  },
+  investments: async (): Promise<InvestmentsSummary> => {
+    const { data } = await api.get('/dashboard/investments')
+    return data
+  },
+  anomalies: async (accountIds?: string[]): Promise<DashboardAnomaly[]> => {
+    const { data } = await api.get('/dashboard/anomalies', acctIdsParam(accountIds))
+    return data
+  },
+  spendingByWeekday: async (accountIds?: string[]): Promise<SpendingByWeekday> => {
+    const { data } = await api.get('/dashboard/spending-by-weekday', acctIdsParam(accountIds))
+    return data
+  },
+  healthMetrics: async (accountIds?: string[]): Promise<HealthMetrics> => {
+    const { data } = await api.get('/dashboard/health-metrics', acctIdsParam(accountIds))
     return data
   },
   monthOutlook: async (month?: string, accountIds?: string[]): Promise<MonthOutlook> => {
