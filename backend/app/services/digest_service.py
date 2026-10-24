@@ -29,6 +29,8 @@ logger = logging.getLogger(__name__)
 # One message per transaction; the rest wait for tomorrow's digest.
 MAX_ITEMS = 40
 CATEGORIES_PER_PAGE = 8
+# Rows in the "view and edit" list of what the model applied on its own.
+LIST_PER_PAGE = 8
 # Telegram tolerates short bursts but asks for roughly a message a second per
 # chat; this keeps a full digest comfortably inside the limits.
 SEND_DELAY_SECONDS = 0.05
@@ -39,8 +41,13 @@ _TEXT = {
     "en": {
         "header": "🗂 Daily summary — {n} to choose",
         "header_hint": "The AI wasn't sure about these. Tap ✏️ Choose, or answer them on the Categorization screen.",
-        "header_auto": "✅ {m} categorized automatically by the AI. They keep their category unless you change it; review them on the Categorization screen or confirm them all here.",
+        "header_auto": "✅ {m} categorized automatically by the AI. They keep their category unless you change it. Tap 📋 View & edit to see them and change any, or confirm them all.",
         "confirm_all": "✅ Confirm all",
+        "view": "📋 View & edit",
+        "list_title": "✅ Categorized automatically — {page}/{pages}",
+        "list_hint": "Tap a number to review or change that one.",
+        "back_list": "↩ Back to the list",
+        "back_summary": "↩ Back",
         "confirm": "✅ Confirm",
         "change": "✏️ Change",
         "choose": "✏️ Choose",
@@ -65,8 +72,13 @@ _TEXT = {
     "pt": {
         "header": "🗂 Resumo diário — {n} para escolher",
         "header_hint": "A IA não teve certeza sobre estas. Toque em ✏️ Escolher, ou responda na tela Categorização.",
-        "header_auto": "✅ {m} categorizada(s) automaticamente pela IA. Mantêm a categoria, a menos que você altere; confira na tela Categorização ou confirme todas aqui.",
+        "header_auto": "✅ {m} categorizada(s) automaticamente pela IA. Mantêm a categoria, a menos que você altere. Toque em 📋 Ver e editar para conferir e alterar alguma, ou confirme todas.",
         "confirm_all": "✅ Confirmar todas",
+        "view": "📋 Ver e editar",
+        "list_title": "✅ Categorizadas automaticamente — {page}/{pages}",
+        "list_hint": "Toque no número para conferir ou alterar aquela.",
+        "back_list": "↩ Voltar à lista",
+        "back_summary": "↩ Voltar",
         "confirm": "✅ Confirmar",
         "change": "✏️ Alterar",
         "choose": "✏️ Escolher",
@@ -159,9 +171,18 @@ def _signed(tx: Transaction) -> float:
     return -abs(amount) if tx.type == "debit" else abs(amount)
 
 
-def render_item(item: Item, lang: str, *, state: Optional[str] = None) -> tuple[str, Optional[dict]]:
+def _ctx(list_page: Optional[int]) -> str:
+    """Callback suffix that sends the answer back to a page of the list."""
+    return "" if list_page is None else f":{list_page}"
+
+
+def render_item(
+    item: Item, lang: str, *, state: Optional[str] = None, list_page: Optional[int] = None
+) -> tuple[str, Optional[dict]]:
     """(text, keyboard) for one transaction. `state` is 'confirmed' or
-    'changed' once it has been answered, which also drops the buttons."""
+    'changed' once it has been answered, which also drops the buttons.
+    `list_page` is set when the card was opened from the "view and edit"
+    list, so its buttons lead back there."""
     tx = item.transaction
     first = f"{tx.date.strftime('%d/%m')} · {tx.description.strip()[:80]}"
     money = format_money(_signed(tx), tx.currency, lang)
@@ -182,13 +203,17 @@ def render_item(item: Item, lang: str, *, state: Optional[str] = None) -> tuple[
         return text, None
 
     ref = pack(item.row.id)
+    ctx = _ctx(list_page)
     buttons = []
     if item.category_name:
-        buttons.append({"text": t(lang, "confirm"), "callback_data": f"a:{ref}"})
-        buttons.append({"text": t(lang, "change"), "callback_data": f"e:{ref}:0"})
+        buttons.append({"text": t(lang, "confirm"), "callback_data": f"a:{ref}{ctx}"})
+        buttons.append({"text": t(lang, "change"), "callback_data": f"e:{ref}:0{ctx}"})
     else:
-        buttons.append({"text": t(lang, "choose"), "callback_data": f"e:{ref}:0"})
-    return text, {"inline_keyboard": [buttons]}
+        buttons.append({"text": t(lang, "choose"), "callback_data": f"e:{ref}:0{ctx}"})
+    rows = [buttons]
+    if list_page is not None:
+        rows.append([{"text": t(lang, "back_list"), "callback_data": f"L:{list_page}"}])
+    return text, {"inline_keyboard": rows}
 
 
 def render_category_picker(
@@ -198,20 +223,77 @@ def render_category_picker(
     has_next: bool,
     pages: int,
     lang: str,
+    *,
+    list_page: Optional[int] = None,
 ) -> tuple[str, dict]:
+    ctx = _ctx(list_page)
     rows = [
-        [{"text": name[:30], "callback_data": f"c:{pack(ref)}:{pack(cid)}"}]
+        [{"text": name[:30], "callback_data": f"c:{pack(ref)}:{pack(cid)}{ctx}"}]
         for cid, name in categories
     ]
     nav = []
     if page > 0:
-        nav.append({"text": "◀", "callback_data": f"e:{pack(ref)}:{page - 1}"})
+        nav.append({"text": "◀", "callback_data": f"e:{pack(ref)}:{page - 1}{ctx}"})
     nav.append({"text": t(lang, "page", page=page + 1, pages=pages), "callback_data": "noop"})
     if has_next:
-        nav.append({"text": "▶", "callback_data": f"e:{pack(ref)}:{page + 1}"})
+        nav.append({"text": "▶", "callback_data": f"e:{pack(ref)}:{page + 1}{ctx}"})
     rows.append(nav)
-    rows.append([{"text": t(lang, "cancel"), "callback_data": f"x:{pack(ref)}"}])
+    rows.append([{"text": t(lang, "cancel"), "callback_data": f"x:{pack(ref)}{ctx}"}])
     return t(lang, "pick"), {"inline_keyboard": rows}
+
+
+def render_summary(count: int, lang: str) -> tuple[str, dict]:
+    """The line about what the model applied on its own, with its buttons."""
+    return t(lang, "header_auto", m=count), summary_keyboard(lang)
+
+
+def summary_keyboard(lang: str) -> dict:
+    return {
+        "inline_keyboard": [
+            [
+                {"text": t(lang, "confirm_all"), "callback_data": "A"},
+                {"text": t(lang, "view"), "callback_data": "L:0"},
+            ]
+        ]
+    }
+
+
+def render_list(items: list[Item], page: int, lang: str) -> tuple[str, dict, int]:
+    """One page of what the model applied: each transaction with the category
+    it got, and a numbered button to open it. Returns (text, keyboard, page),
+    the page clamped to what exists."""
+    pages = max(1, -(-len(items) // LIST_PER_PAGE))
+    page = max(0, min(page, pages - 1))
+    chunk = items[page * LIST_PER_PAGE : (page + 1) * LIST_PER_PAGE]
+    lines = [t(lang, "list_title", page=page + 1, pages=pages), ""]
+    numbers = []
+    for position, item in enumerate(chunk, start=1):
+        tx = item.transaction
+        money = format_money(_signed(tx), tx.currency, lang)
+        suffix = f" ×{item.siblings + 1}" if item.siblings else ""
+        lines.append(
+            f"{position}. {tx.date.strftime('%d/%m')} · {tx.description.strip()[:40]} · "
+            f"{money}{suffix}\n    → {item.category_name or '—'}"
+        )
+        numbers.append(
+            {"text": str(position), "callback_data": f"p:{pack(item.row.id)}:{page}"}
+        )
+    lines += ["", t(lang, "list_hint")]
+    rows = [numbers[i : i + 4] for i in range(0, len(numbers), 4)]
+    nav = []
+    if page > 0:
+        nav.append({"text": "◀", "callback_data": f"L:{page - 1}"})
+    nav.append({"text": t(lang, "page", page=page + 1, pages=pages), "callback_data": "noop"})
+    if page < pages - 1:
+        nav.append({"text": "▶", "callback_data": f"L:{page + 1}"})
+    rows.append(nav)
+    rows.append(
+        [
+            {"text": t(lang, "confirm_all"), "callback_data": "A"},
+            {"text": t(lang, "back_summary"), "callback_data": "H"},
+        ]
+    )
+    return "\n".join(lines), {"inline_keyboard": rows}, page
 
 
 # --- reading the ledger ------------------------------------------------------
@@ -254,15 +336,34 @@ async def _pending_items(session: AsyncSession, workspace_id: uuid.UUID) -> list
     'changed' instead of being sent: asking about a category they picked
     themselves would be noise, and the correction is worth learning from.
     """
+    return await _collect(
+        session,
+        workspace_id,
+        AiCategorization.notified_at.is_(None),
+        AiCategorization.status.in_(("applied", "low_confidence")),
+    )
+
+
+async def automatic_items(session: AsyncSession, workspace_id: uuid.UUID) -> list[Item]:
+    """What the model applied on its own, was reported in a digest, and nobody
+    has confirmed or changed yet: the list behind "view and edit"."""
+    return await _collect(
+        session,
+        workspace_id,
+        AiCategorization.notified_at.is_not(None),
+        AiCategorization.status == "applied",
+    )
+
+
+async def _collect(session: AsyncSession, workspace_id: uuid.UUID, *conditions) -> list[Item]:
     rows = (
         await session.execute(
             select(AiCategorization, Transaction)
             .join(Transaction, Transaction.id == AiCategorization.transaction_id)
             .where(
                 AiCategorization.workspace_id == workspace_id,
-                AiCategorization.notified_at.is_(None),
                 AiCategorization.is_follower.is_(False),
-                AiCategorization.status.in_(("applied", "low_confidence")),
+                *conditions,
             )
             .order_by(Transaction.date.desc(), AiCategorization.created_at.desc())
         )
@@ -374,13 +475,7 @@ async def send_digest(
                     lines += [t(lang, "header", n=len(needs_choice)), t(lang, "header_hint")]
                 if automatic:
                     lines.append(t(lang, "header_auto", m=len(automatic)))
-                header_keyboard = None
-                if automatic:
-                    header_keyboard = {
-                        "inline_keyboard": [
-                            [{"text": t(lang, "confirm_all"), "callback_data": "A"}]
-                        ]
-                    }
+                header_keyboard = summary_keyboard(lang) if automatic else None
                 await client.send_message(chat_id, "\n".join(lines), reply_markup=header_keyboard)
                 for item in sendable:
                     text, keyboard = render_item(item, lang)

@@ -281,7 +281,7 @@ async def test_only_what_needs_a_decision_gets_its_own_message(
     header = bot.sent[0]
     assert "1 para escolher" in header[1]  # the test user reads Portuguese
     assert "1 categorizada(s) automaticamente" in header[1]
-    assert _buttons(header[2]) == ["A"]  # confirm everything the model applied
+    assert _buttons(header[2]) == ["A", "L:0"]  # confirm everything, or look at it first
     assert any("PIX RECEBIDO" in text for _, text, _ in bot.sent)
     # What the model applied is a line in the header, not a message to answer.
     assert not any("NETFLIX" in text for _, text, _ in bot.sent)
@@ -301,7 +301,7 @@ async def test_a_day_with_only_automatic_categorizations_is_one_message(
     assert sent == 1 and len(bot.sent) == 1
     text, keyboard = bot.sent[0][1], bot.sent[0][2]
     assert "para escolher" not in text and "1 categorizada(s) automaticamente" in text
-    assert _buttons(keyboard) == ["A"]
+    assert _buttons(keyboard) == ["A", "L:0"]
 
 
 @pytest.mark.asyncio
@@ -806,3 +806,179 @@ async def test_run_now_sends_the_pending_digest_without_spending_the_day(
     settings = await session.get(WorkspaceAiSettings, test_workspace.id)
     await session.refresh(settings)
     assert settings is not None and settings.last_digest_on is None
+
+
+# ---------------------------------------------------------------------------
+# "View & edit": the list behind the automatic line
+# ---------------------------------------------------------------------------
+async def _two_automatic(session, user, workspace, categories, transactions):
+    """Two transactions the model applied on its own, both already reported."""
+    await _enable_digest(session, user, workspace)
+    txs = _by_description(transactions)
+    await _ledger(session, workspace, txs["NETFLIX"], categories[0])
+    await _ledger(session, workspace, txs["UBER TRIP"], categories[1])
+    await telegram_service.link_chat(session, workspace.id, user.id, 555, None)
+    await digest_service.send_digest(session, workspace.id, client=RecordingBot())
+    return txs
+
+
+async def _ref_of(session, tx):
+    row = (
+        await session.execute(
+            select(AiCategorization).where(AiCategorization.transaction_id == tx.id)
+        )
+    ).scalar_one()
+    return digest_service.pack(row.id)
+
+
+@pytest.mark.asyncio
+async def test_view_and_edit_lists_each_transaction_with_its_category(
+    session: AsyncSession, test_user, test_workspace, test_categories, test_transactions
+):
+    txs = await _two_automatic(session, test_user, test_workspace, test_categories, test_transactions)
+    bot = RecordingBot()
+
+    await handlers.handle_update(TestSessionLocal, test_workspace.id, bot, _callback(555, "L:0"))
+
+    chat, message_id, text, keyboard = bot.edits[-1]
+    assert (chat, message_id) == (555, 77)
+    assert "NETFLIX" in text and "UBER TRIP" in text
+    assert test_categories[0].name in text and test_categories[1].name in text
+    buttons = _buttons(keyboard)
+    assert f"p:{await _ref_of(session, txs['NETFLIX'])}:0" in buttons
+    assert f"p:{await _ref_of(session, txs['UBER TRIP'])}:0" in buttons
+    assert "A" in buttons and "H" in buttons
+
+
+@pytest.mark.asyncio
+async def test_picking_a_number_opens_that_transaction_with_a_way_back(
+    session: AsyncSession, test_user, test_workspace, test_categories, test_transactions
+):
+    txs = await _two_automatic(session, test_user, test_workspace, test_categories, test_transactions)
+    ref = await _ref_of(session, txs["NETFLIX"])
+    bot = RecordingBot()
+
+    await handlers.handle_update(TestSessionLocal, test_workspace.id, bot, _callback(555, f"p:{ref}:0"))
+
+    text, keyboard = bot.edits[-1][2], bot.edits[-1][3]
+    assert "NETFLIX" in text and test_categories[0].name in text
+    assert _buttons(keyboard) == [f"a:{ref}:0", f"e:{ref}:0:0", "L:0"]
+
+
+@pytest.mark.asyncio
+async def test_changing_from_the_list_picks_a_category_and_returns_to_the_list(
+    session: AsyncSession, test_user, test_workspace, test_categories, test_transactions
+):
+    txs = await _two_automatic(session, test_user, test_workspace, test_categories, test_transactions)
+    ref = await _ref_of(session, txs["NETFLIX"])
+    bot = RecordingBot()
+
+    await handlers.handle_update(TestSessionLocal, test_workspace.id, bot, _callback(555, f"e:{ref}:0:0"))
+    picker = _buttons(bot.edits[-1][3])
+    chosen = f"c:{ref}:{digest_service.pack(test_categories[2].id)}:0"
+    assert chosen in picker and f"x:{ref}:0" in picker  # every button keeps the list page
+
+    await handlers.handle_update(TestSessionLocal, test_workspace.id, bot, _callback(555, chosen))
+
+    await session.refresh(txs["NETFLIX"])
+    assert txs["NETFLIX"].category_id == test_categories[2].id
+    text = bot.edits[-1][2]
+    # Back on the list: the one just changed is gone, the other one remains.
+    assert "UBER TRIP" in text and "NETFLIX" not in text
+    assert bot.answers[-1][1] == "✅ alterada"
+
+
+@pytest.mark.asyncio
+async def test_confirming_from_the_list_keeps_the_rest_of_the_list(
+    session: AsyncSession, test_user, test_workspace, test_categories, test_transactions
+):
+    txs = await _two_automatic(session, test_user, test_workspace, test_categories, test_transactions)
+    ref = await _ref_of(session, txs["UBER TRIP"])
+    bot = RecordingBot()
+
+    await handlers.handle_update(TestSessionLocal, test_workspace.id, bot, _callback(555, f"a:{ref}:0"))
+
+    text = bot.edits[-1][2]
+    assert "NETFLIX" in text and "UBER TRIP" not in text
+    assert bot.answers[-1][1] == "✅ confirmada"
+
+
+@pytest.mark.asyncio
+async def test_cancelling_the_picker_returns_to_the_card_inside_the_list(
+    session: AsyncSession, test_user, test_workspace, test_categories, test_transactions
+):
+    txs = await _two_automatic(session, test_user, test_workspace, test_categories, test_transactions)
+    ref = await _ref_of(session, txs["NETFLIX"])
+    bot = RecordingBot()
+
+    await handlers.handle_update(TestSessionLocal, test_workspace.id, bot, _callback(555, f"x:{ref}:0"))
+
+    assert _buttons(bot.edits[-1][3]) == [f"a:{ref}:0", f"e:{ref}:0:0", "L:0"]
+
+
+@pytest.mark.asyncio
+async def test_the_list_is_paged_and_the_back_button_restores_the_summary(
+    session: AsyncSession, test_user, test_workspace, test_categories, test_transactions
+):
+    await _enable_digest(session, test_user, test_workspace)
+    await telegram_service.link_chat(session, test_workspace.id, test_user.id, 555, None)
+    base = test_transactions[0]
+    for i in range(digest_service.LIST_PER_PAGE + 2):
+        tx = Transaction(
+            account_id=base.account_id,
+            workspace_id=test_workspace.id,
+            user_id=test_user.id,
+            description=f"COMPRA {i:02d}",
+            amount=10,
+            currency="BRL",
+            date=base.date,
+            type="debit",
+            source="manual",
+        )
+        session.add(tx)
+        await session.flush()
+        await _ledger(session, test_workspace, tx, test_categories[0])
+    await digest_service.send_digest(session, test_workspace.id, client=RecordingBot())
+    bot = RecordingBot()
+
+    await handlers.handle_update(TestSessionLocal, test_workspace.id, bot, _callback(555, "L:0"))
+    first = bot.edits[-1]
+    assert "1/2" in first[2] and "L:1" in _buttons(first[3])
+
+    await handlers.handle_update(TestSessionLocal, test_workspace.id, bot, _callback(555, "L:1"))
+    assert "2/2" in bot.edits[-1][2] and "L:0" in _buttons(bot.edits[-1][3])
+
+    await handlers.handle_update(TestSessionLocal, test_workspace.id, bot, _callback(555, "H"))
+    text, keyboard = bot.edits[-1][2], bot.edits[-1][3]
+    assert "10 categorizada(s) automaticamente" in text
+    assert _buttons(keyboard) == ["A", "L:0"]
+
+
+@pytest.mark.asyncio
+async def test_an_empty_list_says_there_is_nothing_left(
+    session: AsyncSession, test_user, test_workspace, test_categories, test_transactions
+):
+    await _two_automatic(session, test_user, test_workspace, test_categories, test_transactions)
+    await digest_service.approve_all(session, test_workspace.id, test_user.id)
+    bot = RecordingBot()
+
+    await handlers.handle_update(TestSessionLocal, test_workspace.id, bot, _callback(555, "L:0"))
+
+    assert bot.edits[-1][2] == "Nada para confirmar." and bot.edits[-1][3] is None
+
+
+@pytest.mark.asyncio
+async def test_every_list_callback_fits_telegrams_64_byte_limit(
+    session: AsyncSession, test_user, test_workspace, test_categories, test_transactions
+):
+    await _two_automatic(session, test_user, test_workspace, test_categories, test_transactions)
+    items = await digest_service.automatic_items(session, test_workspace.id)
+    _, list_keyboard, _ = digest_service.render_list(items, 99, "pt")
+    _, card = digest_service.render_item(items[0], "pt", list_page=99)
+    cats = [(c.id, c.name) for c in test_categories]
+    _, picker = digest_service.render_category_picker(
+        items[0].row.id, cats, 98, True, 99, "pt", list_page=99
+    )
+    for keyboard in (list_keyboard, card, picker):
+        for data in _buttons(keyboard):
+            assert len(data.encode()) <= 64, data

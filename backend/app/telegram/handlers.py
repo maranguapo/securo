@@ -196,59 +196,135 @@ async def _dispatch(
         await _edit(client, chat_id, message_id, t(lang, "approved_all", n=count), None)
         return t(lang, "approved_all", n=count) if count else t(lang, "nothing")
 
-    ref_text, _, extra = rest.partition(":")
-    ref = digest_service.unpack(ref_text)
+    if action == "L":
+        await _show_list(session, workspace_id, lang, client, chat_id, message_id, _int(rest))
+        return None
+
+    if action == "H":
+        items = await digest_service.automatic_items(session, workspace_id)
+        await session.commit()  # rows settled elsewhere were closed while listing
+        if not items:
+            await _edit(client, chat_id, message_id, t(lang, "nothing"), None)
+            return t(lang, "nothing")
+        text, keyboard = digest_service.render_summary(len(items), lang)
+        await _edit(client, chat_id, message_id, text, keyboard)
+        return None
+
+    parts = rest.split(":")
+    ref = digest_service.unpack(parts[0])
     if ref is None:
+        return None
+    # A trailing page number means the button was pressed inside the "view and
+    # edit" list, and the answer should lead back to that page.
+    list_page: Optional[int] = None
+
+    if action == "p":
+        list_page = _int(parts[1] if len(parts) > 1 else "0")
+        item = await digest_service.load_item(session, workspace_id, ref)
+        if item is None:
+            await _edit(client, chat_id, message_id, t(lang, "gone"), None)
+            return t(lang, "gone")
+        text, keyboard = digest_service.render_item(item, lang, list_page=list_page)
+        await _edit(client, chat_id, message_id, text, keyboard)
         return None
 
     if action == "a":
+        list_page = _int(parts[1]) if len(parts) > 1 else None
         outcome = await digest_service.approve(session, workspace_id, ref, user_id)
+        if list_page is not None:
+            await _show_list(session, workspace_id, lang, client, chat_id, message_id, list_page)
+            return _toast(lang, outcome)
         return await _show_outcome(client, chat_id, message_id, lang, outcome)
 
     if action == "e":
+        list_page = _int(parts[2]) if len(parts) > 2 else None
         item = await digest_service.load_item(session, workspace_id, ref)
         if item is None:
             await _edit(client, chat_id, message_id, t(lang, "gone"), None)
             return t(lang, "gone")
         if item.row.status in ("approved", "changed"):
-            return await _show_outcome(
-                client, chat_id, message_id, lang,
-                digest_service.Outcome(
-                    "already", item, "confirmed" if item.row.status == "approved" else "changed"
-                ),
+            outcome = digest_service.Outcome(
+                "already", item, "confirmed" if item.row.status == "approved" else "changed"
             )
-        try:
-            page = int(extra or 0)
-        except ValueError:
-            page = 0
+            if list_page is not None:
+                await _show_list(session, workspace_id, lang, client, chat_id, message_id, list_page)
+                return _toast(lang, outcome)
+            return await _show_outcome(client, chat_id, message_id, lang, outcome)
+        page = _int(parts[1] if len(parts) > 1 else "0")
         categories, has_next, pages = await digest_service.category_page(
             session, workspace_id, page
         )
         page = max(0, min(page, pages - 1))
         text, keyboard = digest_service.render_category_picker(
-            ref, categories, page, has_next, pages, lang
+            ref, categories, page, has_next, pages, lang, list_page=list_page
         )
         await _edit(client, chat_id, message_id, text, keyboard)
         return None
 
     if action == "x":
+        list_page = _int(parts[1]) if len(parts) > 1 else None
         item = await digest_service.load_item(session, workspace_id, ref)
         if item is None:
             await _edit(client, chat_id, message_id, t(lang, "gone"), None)
             return t(lang, "gone")
         state = {"approved": "confirmed", "changed": "changed"}.get(item.row.status)
-        text, keyboard = digest_service.render_item(item, lang, state=state)
+        text, keyboard = digest_service.render_item(
+            item, lang, state=state, list_page=list_page if state is None else None
+        )
         await _edit(client, chat_id, message_id, text, keyboard)
         return None
 
     if action == "c":
-        category_id = digest_service.unpack(extra)
+        category_id = digest_service.unpack(parts[1]) if len(parts) > 1 else None
         if category_id is None:
             return None
+        list_page = _int(parts[2]) if len(parts) > 2 else None
         outcome = await digest_service.choose(session, workspace_id, ref, category_id, user_id)
+        if list_page is not None:
+            await _show_list(session, workspace_id, lang, client, chat_id, message_id, list_page)
+            return _toast(lang, outcome)
         return await _show_outcome(client, chat_id, message_id, lang, outcome)
 
     return None
+
+
+def _int(text: str) -> int:
+    try:
+        return max(0, int(text or 0))
+    except ValueError:
+        return 0
+
+
+def _toast(lang: str, outcome: "digest_service.Outcome") -> Optional[str]:
+    """The short note shown over the chat after an answer given inside the list."""
+    t = digest_service.t
+    if outcome.kind == "gone" or outcome.item is None:
+        return t(lang, "gone")
+    if outcome.kind == "needs_choice":
+        return t(lang, "needs_choice")
+    if outcome.kind == "already":
+        return t(lang, "already")
+    return f"✅ {t(lang, outcome.state or 'confirmed')}"
+
+
+async def _show_list(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    lang: str,
+    client: TelegramClient,
+    chat_id: int,
+    message_id: int,
+    page: int,
+) -> None:
+    """Edit the message into a page of what the model applied on its own, or
+    into a note when nothing is left to look at."""
+    items = await digest_service.automatic_items(session, workspace_id)
+    await session.commit()  # rows settled elsewhere were closed while listing
+    if not items:
+        await _edit(client, chat_id, message_id, digest_service.t(lang, "nothing"), None)
+        return
+    text, keyboard, _ = digest_service.render_list(items, page, lang)
+    await _edit(client, chat_id, message_id, text, keyboard)
 
 
 async def _show_outcome(
