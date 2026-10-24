@@ -293,6 +293,7 @@ async def test_undo_takes_the_category_off_and_returns_the_item_to_review(
     assert resp.json() == {"done": 1, "skipped": 0}
     await session.refresh(txs["NETFLIX"])
     assert txs["NETFLIX"].category_id is None
+    assert txs["NETFLIX"].category_source is None  # no category, no origin
     review = (await client.get(f"{BASE}/items?tab=review", headers=auth_headers)).json()["items"]
     undone = [i for i in review if i["description"] == "NETFLIX"][0]
     assert undone["suggested"]["name"] == "Alimentação"  # what the model had proposed is still shown
@@ -367,6 +368,10 @@ async def test_a_decision_can_become_a_rule_that_also_fills_matching_transaction
     assert rule.actions == [{"op": "set_category", "value": str(test_categories[0].id)}]
     await session.refresh(other)
     assert other.category_id == test_categories[0].id
+    # The ones the rule filled name it; the one the person picked is theirs.
+    assert (other.category_source, other.category_rule_id) == ("rule", rule.id)
+    await session.refresh(txs["NETFLIX"])
+    assert (txs["NETFLIX"].category_source, txs["NETFLIX"].category_rule_id) == ("user", None)
     await session.refresh(applied)
     assert applied.status in ("approved", "changed")
 

@@ -24,6 +24,7 @@ from app.schemas.transaction import (
 )
 from app.schemas.transaction_split import TransactionSplitInput, TransactionSplitsInput
 from app.services import reconciliation_service, split_service
+from app.services.category_origin import set_category
 from app.services.credit_card_service import apply_effective_date
 from app.services.rule_service import apply_rules_to_transaction
 from app.services.fx_rate_service import stamp_primary_amount, convert as fx_convert
@@ -666,6 +667,37 @@ async def _tag_shared_view(
             tx.attachment_count = 0
 
 
+async def get_category_origin(session: AsyncSession, tx: Transaction) -> dict:
+    """What chose this transaction's category, with the rule or AI details."""
+    from app.models.ai_categorization import AiCategorization
+    from app.models.rule import Rule
+
+    origin: dict = {"source": tx.category_source if tx.category_id else None}
+    if origin["source"] == "rule":
+        rule = (
+            await session.get(Rule, tx.category_rule_id)
+            if tx.category_rule_id is not None
+            else None
+        )
+        if rule is not None and rule.workspace_id == tx.workspace_id:
+            origin["rule"] = {"id": rule.id, "name": rule.name}
+        else:
+            origin["rule_removed"] = True
+    elif origin["source"] == "ai":
+        ledger = (
+            await session.execute(
+                select(AiCategorization).where(AiCategorization.transaction_id == tx.id)
+            )
+        ).scalar_one_or_none()
+        if ledger is not None:
+            origin["ai"] = {
+                "confidence": ledger.confidence,
+                "status": ledger.status,
+                "reason": ledger.reason,
+            }
+    return origin
+
+
 async def get_transaction(
     session: AsyncSession,
     transaction_id: uuid.UUID,
@@ -748,6 +780,8 @@ async def create_transaction(
         installment_total_amount=data.installment_total_amount,
         installment_purchase_date=data.installment_purchase_date,
     )
+    if data.category_id is not None:
+        set_category(transaction, data.category_id, "user")
     if data.effective_bill_date is not None:
         await _resync_bill_link_from_override(session, transaction, account)
     apply_effective_date(transaction, account)
@@ -854,6 +888,8 @@ async def create_installment_series(
             installment_purchase_date=purchase_date,
             installment_series_id=series_id,
         )
+        if base.category_id is not None:
+            set_category(tx, base.category_id, "user")
         if base.effective_bill_date is not None:
             await _resync_bill_link_from_override(session, tx, account)
         apply_effective_date(tx, account)
@@ -1434,10 +1470,13 @@ async def _apply_update_to_row(
         tx.description_is_rule_managed = False
 
     fx_keys = {"amount_primary", "fx_rate_used"}
+    previous_category = tx.category_id
     for key, value in update_data.items():
         if key in fx_keys:
             continue
         setattr(tx, key, value)
+    if "category_id" in update_data and tx.category_id != previous_category:
+        set_category(tx, tx.category_id, "user")
 
     restamp_fields = {"amount", "currency", "date"}
     needs_restamp = bool(restamp_fields & update_data.keys())
@@ -1479,7 +1518,7 @@ async def _apply_update_to_row(
         paired_tx = paired.scalar_one_or_none()
         if paired_tx:
             if should_cascade_category:
-                paired_tx.category_id = tx.category_id
+                set_category(paired_tx, tx.category_id, tx.category_source, tx.category_rule_id)
             # When the user typed both amounts, neither is a conversion of the
             # other: correcting one leg leaves the amount that actually landed
             # on the other account untouched. Re-converting here would throw
@@ -1651,7 +1690,11 @@ async def bulk_update_category(
             Transaction.id.in_(transaction_ids),
             Transaction.workspace_id == workspace_id,
         )
-        .values(category_id=category_id)
+        .values(
+            category_id=category_id,
+            category_source="user" if category_id is not None else None,
+            category_rule_id=None,
+        )
     )
     await session.commit()
     return cast(CursorResult, result).rowcount

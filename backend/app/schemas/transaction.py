@@ -317,3 +317,25 @@ class TransactionImportRequest(BaseModel):
     filename: str = ""
     detected_format: str = ""
     detect_duplicates: bool = True
+
+
+class CategoryOriginRule(BaseModel):
+    id: uuid.UUID
+    name: str
+
+
+class CategoryOriginAi(BaseModel):
+    confidence: Optional[float] = None
+    status: str
+    reason: Optional[str] = None
+
+
+class CategoryOriginRead(BaseModel):
+    """What chose this transaction's category. `source` is null when there is
+    no category, or when it was set before this was recorded."""
+
+    source: Optional[str] = None
+    rule: Optional[CategoryOriginRule] = None
+    # True when a rule chose it and has since been deleted.
+    rule_removed: bool = False
+    ai: Optional[CategoryOriginAi] = None

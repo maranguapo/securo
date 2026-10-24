@@ -1308,7 +1308,15 @@
     "invoiceBadgeTooltip": "Questa transazione salda una fattura. Aprila.",
     "suggestionBadge": "Domanda",
     "suggestionBadgeTooltip": "Un pagamento potrebbe saldare questa fattura. Apri la coda per rispondere.",
-    "clearGroupFilter": "Rimuovi filtro gruppo"
+    "clearGroupFilter": "Rimuovi filtro gruppo",
+    "categoryOrigin": {
+      "rule": "Impostata dalla regola «{{name}}»",
+      "ruleRemoved": "Impostata da una regola poi eliminata",
+      "ai": "Impostata dall’IA ({{confidence}}% di sicurezza)",
+      "user": "Scelta da te",
+      "provider": "Arrivata con la transazione della banca",
+      "recurring": "Copiata dalla transazione ricorrente"
+    }
   },
   "accounts": {
     "title": "Conti",

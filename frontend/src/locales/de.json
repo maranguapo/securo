@@ -1306,7 +1306,15 @@
     "invoiceBadgeTooltip": "Diese Transaktion begleicht eine Rechnung. Öffnen.",
     "suggestionBadge": "Frage",
     "suggestionBadgeTooltip": "Eine Zahlung könnte diese Rechnung begleichen. Öffnen Sie die Warteschlange.",
-    "clearGroupFilter": "Gruppenfilter entfernen"
+    "clearGroupFilter": "Gruppenfilter entfernen",
+    "categoryOrigin": {
+      "rule": "Durch Regel „{{name}}“ festgelegt",
+      "ruleRemoved": "Durch eine inzwischen gelöschte Regel festgelegt",
+      "ai": "Von der KI festgelegt ({{confidence}} % sicher)",
+      "user": "Von dir gewählt",
+      "provider": "Mit der Banktransaktion geliefert",
+      "recurring": "Aus der wiederkehrenden Transaktion übernommen"
+    }
   },
   "accounts": {
     "title": "Konten",

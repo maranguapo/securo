@@ -30,6 +30,12 @@ class Transaction(Base):
     )
     account_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("accounts.id"), nullable=False)
     category_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("categories.id"), nullable=True)
+    # What chose the category (see app.services.category_origin). NULL when there
+    # is no category, or when it predates this being recorded.
+    category_source: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
+    category_rule_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("rules.id", ondelete="SET NULL"), nullable=True
+    )
     external_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)  # Provider's transaction ID
     description: Mapped[str] = mapped_column(String(500))
     original_description: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
@@ -155,3 +161,22 @@ def _default_effective_date(mapper, connection, target):
 def _default_effective_date_on_update(mapper, connection, target):
     if target.effective_date is None:
         target.effective_date = target.date
+
+
+@event.listens_for(Transaction, "before_update")
+def _forget_stale_category_origin(mapper, connection, target):
+    """A category that changed without saying who chose it has no known origin.
+
+    Code that sets a category goes through category_origin.set_category. If a
+    path forgets to, keeping the old origin would claim a rule or the AI chose
+    something they did not, so it is cleared instead.
+    """
+    from sqlalchemy import inspect
+
+    from app.services.category_origin import reset_declared, was_declared
+
+    state = inspect(target)
+    if state.attrs.category_id.history.has_changes() and not was_declared(target):
+        target.category_source = None
+        target.category_rule_id = None
+    reset_declared(target)

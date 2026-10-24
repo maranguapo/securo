@@ -1306,7 +1306,15 @@
     "invoiceBadgeTooltip": "Ez a tranzakció egy számlát egyenlít ki. Megnyitás.",
     "suggestionBadge": "Kérdés",
     "suggestionBadgeTooltip": "Lehet, hogy egy befizetés kiegyenlíti ezt. Nyisd meg a sort a válaszhoz.",
-    "clearGroupFilter": "Csoportszűrő törlése"
+    "clearGroupFilter": "Csoportszűrő törlése",
+    "categoryOrigin": {
+      "rule": "A(z) „{{name}}” szabály állította be",
+      "ruleRemoved": "Egy azóta törölt szabály állította be",
+      "ai": "Az MI állította be ({{confidence}}% biztonsággal)",
+      "user": "Ön választotta",
+      "provider": "A banki tranzakcióval érkezett",
+      "recurring": "Az ismétlődő tranzakcióból másolva"
+    }
   },
   "accounts": {
     "title": "Számlák",

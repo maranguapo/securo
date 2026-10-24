@@ -417,6 +417,8 @@ async def _plan_installments(
 
         category_id = installment_groups.inherited_category(outside)
         if category_id is not None:
+            # The parcels take over whoever chose the category on their siblings.
+            donor = next((s for s in outside if s.category_id == category_id), None)
             result = await session.execute(
                 update(Transaction)
                 .where(
@@ -424,7 +426,11 @@ async def _plan_installments(
                     Transaction.workspace_id == workspace_id,
                     Transaction.category_id.is_(None),
                 )
-                .values(category_id=category_id)
+                .values(
+                    category_id=category_id,
+                    category_source=donor.category_source if donor else None,
+                    category_rule_id=donor.category_rule_id if donor else None,
+                )
             )
             inherited += int(getattr(result, "rowcount", 0) or 0)
             continue
@@ -494,7 +500,7 @@ async def _record_and_apply(
                     Transaction.workspace_id == workspace_id,
                     Transaction.category_id.is_(None),
                 )
-                .values(category_id=category.id)
+                .values(category_id=category.id, category_source="ai", category_rule_id=None)
             )
             if (getattr(result, "rowcount", 0) or 0) == 0:
                 continue
@@ -515,7 +521,7 @@ async def _record_and_apply(
                         Transaction.workspace_id == workspace_id,
                         Transaction.category_id.is_(None),
                     )
-                    .values(category_id=category.id)
+                    .values(category_id=category.id, category_source="ai", category_rule_id=None)
                 )
                 applied += int(getattr(shared, "rowcount", 0) or 0)
 

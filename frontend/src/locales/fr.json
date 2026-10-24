@@ -1308,7 +1308,15 @@
     "invoiceBadgeTooltip": "Cette transaction solde une facture. Ouvrir.",
     "suggestionBadge": "Question",
     "suggestionBadgeTooltip": "Un paiement peut solder cette facture. Ouvrez la file pour répondre.",
-    "clearGroupFilter": "Effacer le filtre de groupe"
+    "clearGroupFilter": "Effacer le filtre de groupe",
+    "categoryOrigin": {
+      "rule": "Définie par la règle « {{name}} »",
+      "ruleRemoved": "Définie par une règle depuis supprimée",
+      "ai": "Définie par l’IA ({{confidence}} % de confiance)",
+      "user": "Choisie par vous",
+      "provider": "Fournie avec la transaction bancaire",
+      "recurring": "Copiée de la transaction récurrente"
+    }
   },
   "accounts": {
     "title": "Comptes",

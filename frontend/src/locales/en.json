@@ -1306,7 +1306,15 @@
     "invoiceBadgeTooltip": "This transaction settles an invoice. Open it.",
     "suggestionBadge": "Question",
     "suggestionBadgeTooltip": "A payment may settle this. Open the queue to answer.",
-    "clearGroupFilter": "Clear group filter"
+    "clearGroupFilter": "Clear group filter",
+    "categoryOrigin": {
+      "rule": "Set by rule “{{name}}”",
+      "ruleRemoved": "Set by a rule that has since been deleted",
+      "ai": "Set by the AI ({{confidence}}% sure)",
+      "user": "Chosen by you",
+      "provider": "Came with the bank transaction",
+      "recurring": "Copied from the recurring transaction"
+    }
   },
   "accounts": {
     "title": "Accounts",

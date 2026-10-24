@@ -1358,7 +1358,15 @@
     "invoiceBadgeTooltip": "Táto transakcia vyrovnáva faktúru. Otvorte ju.",
     "suggestionBadge": "Otázka",
     "suggestionBadgeTooltip": "Platba môže uhradiť túto faktúru. Otvorte front a odpovedzte.",
-    "clearGroupFilter": "Zrušiť filter skupiny"
+    "clearGroupFilter": "Zrušiť filter skupiny",
+    "categoryOrigin": {
+      "rule": "Nastavené pravidlom „{{name}}“",
+      "ruleRemoved": "Nastavené pravidlom, ktoré bolo neskôr zmazané",
+      "ai": "Nastavené AI (istota {{confidence}} %)",
+      "user": "Vybrané vami",
+      "provider": "Prišlo s bankovou transakciou",
+      "recurring": "Skopírované z opakujúcej sa transakcie"
+    }
   },
   "accounts": {
     "title": "Účty",

@@ -1308,7 +1308,15 @@
     "invoiceBadgeTooltip": "Esta transação quita uma cobrança. Abrir.",
     "suggestionBadge": "Pergunta",
     "suggestionBadgeTooltip": "Um pagamento pode liquidar esta cobrança. Abra a fila para responder.",
-    "clearGroupFilter": "Limpar filtro de grupo"
+    "clearGroupFilter": "Limpar filtro de grupo",
+    "categoryOrigin": {
+      "rule": "Definida pela regra “{{name}}”",
+      "ruleRemoved": "Definida por uma regra entretanto eliminada",
+      "ai": "Definida pela IA ({{confidence}}% de confiança)",
+      "user": "Escolhida por si",
+      "provider": "Veio com a transação do banco",
+      "recurring": "Copiada da transação recorrente"
+    }
   },
   "accounts": {
     "title": "Contas",

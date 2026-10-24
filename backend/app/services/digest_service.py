@@ -21,6 +21,7 @@ from app.models.ai_categorization import AiCategorization
 from app.models.category import Category
 from app.models.transaction import Transaction
 from app.models.workspace_ai_settings import WorkspaceAiSettings
+from app.services.category_origin import set_category
 from app.services import installment_groups, integration_service, telegram_service
 from app.telegram.client import TelegramClient, TelegramError
 
@@ -565,7 +566,7 @@ async def choose(
     if category is None:
         return Outcome("gone")
     previous = item.transaction.category_id
-    item.transaction.category_id = category.id
+    set_category(item.transaction, category.id, "user")
     item.category_name = category.name
     same = category.id == item.row.suggested_category_id
     status = "approved" if same else "changed"
@@ -577,7 +578,7 @@ async def choose(
     parcels = await installment_groups.siblings(session, item.transaction)
     for parcel in parcels:
         if parcel.category_id is None or parcel.category_id == previous:
-            parcel.category_id = category.id
+            set_category(parcel, category.id, "user")
     if parcels:
         followers = (
             await session.execute(

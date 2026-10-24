@@ -13,6 +13,7 @@ from app.models.recurring_transaction import RecurringTransaction
 from app.models.transaction import Transaction
 from app.schemas.recurring_transaction import RecurringTransactionCreate, RecurringTransactionUpdate
 from app.services import recurring_match_service
+from app.services.category_origin import set_category
 from app.services.credit_card_service import apply_effective_date
 from app.services.fx_rate_service import stamp_primary_amount
 
@@ -401,6 +402,8 @@ async def generate_pending(
                     status="pending" if is_synced_account else "posted",
                     recurring_transaction_id=recurring.id,
                 )
+                if recurring.category_id is not None:
+                    set_category(transaction, recurring.category_id, "recurring")
                 apply_effective_date(transaction, account)
                 session.add(transaction)
                 await session.flush()

@@ -27,6 +27,7 @@ from app.services.category_defaults import (
     name_variants,
 )
 from app.services.category_service import get_assignable_category_ids
+from app.services.category_origin import set_category
 from app.services.rule_engine import (
     apply_rule_actions,
     compile_rule_regex,
@@ -1226,6 +1227,7 @@ async def apply_rules_to_transaction(
                 transaction,
                 category_set,
                 assignable_category_ids=assignable_categories,
+                rule_id=rule.id,
             )
 
 
@@ -1428,6 +1430,7 @@ async def apply_single_rule(
             and not overwrite_existing_categories,
             skip_description=_has_manual_description(tx),
             assignable_category_ids=assignable_categories,
+            rule_id=rule.id,
         )
         after = (
             tx.category_id,
@@ -1486,7 +1489,7 @@ async def apply_all_rules(session: AsyncSession, workspace_id: uuid.UUID) -> int
             actions = rule.actions or []
             if evaluate_conditions(rule.conditions_op, conditions, tx):
                 if not matched:
-                    tx.category_id = None
+                    set_category(tx, None, None)
                     tx.notes = None
                     matched = True
                 category_set = apply_rule_actions(
@@ -1495,6 +1498,7 @@ async def apply_all_rules(session: AsyncSession, workspace_id: uuid.UUID) -> int
                     category_set,
                     skip_description=preserve_manual_description,
                     assignable_category_ids=assignable_categories,
+                    rule_id=rule.id,
                 )
 
         after = (

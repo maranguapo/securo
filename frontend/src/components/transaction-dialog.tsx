@@ -36,6 +36,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { CategorySelect } from '@/components/category-select'
+import { CategoryOriginNote } from '@/components/category-origin-note'
 import { PayeeSelect } from '@/components/payee-select'
 import { RuleDialog, type RuleDialogInitialData } from '@/components/rule-dialog'
 import { TransactionAttachments } from '@/components/transaction-attachments'
@@ -568,6 +569,13 @@ function TransactionForm({
     queryKey: ['transactions', transaction?.id, 'transfer-pair'],
     queryFn: () => transactionsApi.transferPair(transaction!.id),
     enabled: !!transaction?.id && !!transaction?.transfer_pair_id,
+  })
+  // What chose the category (rule, AI, bank, recurrence, you). Read lazily for
+  // the open transaction only, so the list response stays as light as it was.
+  const { data: categoryOrigin } = useQuery({
+    queryKey: ['transactions', transaction?.id, 'category-origin'],
+    queryFn: () => transactionsApi.categoryOrigin(transaction!.id),
+    enabled: !!transaction?.id && !!transaction?.category_id,
   })
   const extendableRules = useMemo(
     () => (rulesList ?? []).filter(canExtendRuleFromTransaction),
@@ -1156,6 +1164,11 @@ function TransactionForm({
             creatable
             className="bg-card"
           />
+          {/* Only while the field still shows what was saved: once someone picks
+              another category the note would describe the old one. */}
+          {transaction?.category_id && categoryId === transaction.category_id && (
+            <CategoryOriginNote origin={categoryOrigin} />
+          )}
         </div>
       </div>
       <div className={cn("grid gap-4", isSynced ? "grid-cols-1" : "grid-cols-2")}>

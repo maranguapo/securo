@@ -1306,7 +1306,15 @@
     "invoiceBadgeTooltip": "Deze transactie rekent een factuur af. Openen.",
     "suggestionBadge": "Vraag",
     "suggestionBadgeTooltip": "Een betaling kan deze factuur voldoen. Open de wachtrij om te antwoorden.",
-    "clearGroupFilter": "Groepsfilter wissen"
+    "clearGroupFilter": "Groepsfilter wissen",
+    "categoryOrigin": {
+      "rule": "Ingesteld door regel “{{name}}”",
+      "ruleRemoved": "Ingesteld door een regel die inmiddels is verwijderd",
+      "ai": "Ingesteld door de AI ({{confidence}}% zeker)",
+      "user": "Door jou gekozen",
+      "provider": "Meegekomen met de banktransactie",
+      "recurring": "Overgenomen van de terugkerende transactie"
+    }
   },
   "accounts": {
     "title": "Rekeningen",

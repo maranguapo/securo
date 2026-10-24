@@ -50,6 +50,7 @@ from app.services.asset_group_service import (
 )
 from app.services.credit_card_service import apply_effective_date
 from app.services.rule_engine import merge_notes
+from app.services.category_origin import set_category
 from app.services.rule_service import apply_rules_to_transaction, preview_rules_for_transaction
 from app.services.transfer_detection_service import detect_transfer_pairs
 from app.services.fx_rate_service import stamp_primary_amount
@@ -1255,8 +1256,8 @@ async def handle_oauth_callback(
             await session.flush()
             new_tx_ids.append(transaction.id)
             await apply_rules_to_transaction(session, user_id, transaction)
-            if transaction.category_id is None:
-                transaction.category_id = category_id
+            if transaction.category_id is None and category_id is not None:
+                set_category(transaction, category_id, "provider")
 
             # Prefer bank-provided conversion for international transactions
             acct_currency = acc_data.currency or user_currency
@@ -2404,8 +2405,8 @@ async def sync_connection(
                     )
                 new_tx_ids.append(transaction.id)
                 await apply_rules_to_transaction(session, user_id, transaction)
-                if transaction.category_id is None:
-                    transaction.category_id = category_id
+                if transaction.category_id is None and category_id is not None:
+                    set_category(transaction, category_id, "provider")
 
                 # Prefer bank-provided conversion for international transactions
                 acct_currency = acc_data.currency or user_currency

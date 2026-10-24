@@ -286,6 +286,15 @@ export interface DescriptionSuggestion {
   payee_id: string | null
 }
 
+/** What chose a transaction's category; null source when unknown or uncategorized. */
+export interface CategoryOrigin {
+  source: 'rule' | 'ai' | 'user' | 'provider' | 'recurring' | null
+  rule: { id: string; name: string } | null
+  /** A rule chose it and has since been deleted. */
+  rule_removed: boolean
+  ai: { confidence: number | null; status: string; reason: string | null } | null
+}
+
 export interface Transaction {
   /** Every invoice this transaction settles — a payout net of fees
    *  settles several. Absent in a workspace without the module. */

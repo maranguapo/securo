@@ -1306,7 +1306,15 @@
     "invoiceBadgeTooltip": "यह लेन-देन एक इनवॉइस चुकाता है। इसे खोलें।",
     "suggestionBadge": "सवाल",
     "suggestionBadgeTooltip": "एक भुगतान इसे चुका सकता है। जवाब देने के लिए कतार खोलें।",
-    "clearGroupFilter": "समूह फ़िल्टर हटाएँ"
+    "clearGroupFilter": "समूह फ़िल्टर हटाएँ",
+    "categoryOrigin": {
+      "rule": "नियम “{{name}}” द्वारा तय",
+      "ruleRemoved": "ऐसे नियम द्वारा तय जिसे बाद में हटा दिया गया",
+      "ai": "AI द्वारा तय ({{confidence}}% भरोसा)",
+      "user": "आपने चुनी",
+      "provider": "बैंक लेन-देन के साथ आई",
+      "recurring": "आवर्ती लेन-देन से कॉपी की गई"
+    }
   },
   "accounts": {
     "title": "खाते",

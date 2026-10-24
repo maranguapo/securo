@@ -1308,7 +1308,15 @@
     "invoiceBadgeTooltip": "Esta transacción salda una factura. Ábrela.",
     "suggestionBadge": "Pregunta",
     "suggestionBadgeTooltip": "Un pago puede saldar esta factura. Abre la cola para responder.",
-    "clearGroupFilter": "Quitar filtro de grupo"
+    "clearGroupFilter": "Quitar filtro de grupo",
+    "categoryOrigin": {
+      "rule": "Definida por la regla «{{name}}»",
+      "ruleRemoved": "Definida por una regla que ya se eliminó",
+      "ai": "Definida por la IA ({{confidence}}% de confianza)",
+      "user": "Elegida por ti",
+      "provider": "Vino con la transacción del banco",
+      "recurring": "Copiada de la transacción recurrente"
+    }
   },
   "accounts": {
     "title": "Cuentas",

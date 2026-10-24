@@ -2,6 +2,7 @@
 import re
 import unicodedata
 import uuid
+from app.services.category_origin import set_category
 from collections.abc import Collection
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
@@ -192,6 +193,7 @@ def apply_rule_actions(
     *,
     skip_description: bool = False,
     assignable_category_ids: Collection[uuid.UUID] | None = None,
+    rule_id: uuid.UUID | None = None,
 ) -> bool:
     """Apply actions in-place and return the updated category-set flag.
 
@@ -206,6 +208,9 @@ def apply_rule_actions(
     and take the whole import or sync batch with it.
 
     Passing nothing skips the check, for callers with no workspace at hand.
+
+    `rule_id` is the rule these actions belong to; it is recorded next to the
+    category so the transaction can say which rule chose it.
     """
     for action in actions:
         op = action.get("op")
@@ -218,7 +223,7 @@ def apply_rule_actions(
                 continue
             if assignable_category_ids is not None and category_id not in assignable_category_ids:
                 continue
-            tx.category_id = category_id
+            set_category(tx, category_id, "rule", rule_id)
             category_already_set = True
 
         elif op == "set_description":

@@ -1347,7 +1347,15 @@
     "invoiceBadgeTooltip": "Ta transakcja rozlicza fakturę. Otwórz ją.",
     "suggestionBadge": "Pytanie",
     "suggestionBadgeTooltip": "Płatność może opłacić tę fakturę. Otwórz kolejkę, aby odpowiedzieć.",
-    "clearGroupFilter": "Wyczyść filtr grupy"
+    "clearGroupFilter": "Wyczyść filtr grupy",
+    "categoryOrigin": {
+      "rule": "Ustawiona przez regułę „{{name}}”",
+      "ruleRemoved": "Ustawiona przez regułę, która została usunięta",
+      "ai": "Ustawiona przez AI (pewność {{confidence}}%)",
+      "user": "Wybrana przez Ciebie",
+      "provider": "Przyszła z transakcją z banku",
+      "recurring": "Skopiowana z transakcji cyklicznej"
+    }
   },
   "accounts": {
     "title": "Konta",

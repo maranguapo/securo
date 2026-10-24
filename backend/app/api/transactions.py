@@ -16,7 +16,7 @@ from app.core.workspace_context import (
     current_workspace,
     current_writable_workspace,
 )
-from app.schemas.transaction import BulkAddToGroupRequest, BulkCategorizeRequest, DescriptionSuggestion, BulkTagsRequest, CreateCounterpartRequest, InstallmentSeriesCreate, LinkTransferRequest, TransactionBulkDeleteRequest, TransactionCreate, TransactionRead, TransactionUpdate, TransferCreate, TransferRead
+from app.schemas.transaction import BulkAddToGroupRequest, CategoryOriginRead, BulkCategorizeRequest, DescriptionSuggestion, BulkTagsRequest, CreateCounterpartRequest, InstallmentSeriesCreate, LinkTransferRequest, TransactionBulkDeleteRequest, TransactionCreate, TransactionRead, TransactionUpdate, TransferCreate, TransferRead
 from app.schemas.transaction_calendar import TransactionCalendarResponse
 from app.services import transaction_service
 from app.services.admin_service import get_credit_card_accounting_mode
@@ -451,6 +451,19 @@ async def get_transfer_pair(
     return _tag_fx_fallback(
         TransactionRead.model_validate(pair, from_attributes=True), ctx.user.primary_currency
     )
+
+
+@router.get("/{transaction_id}/category-origin", response_model=CategoryOriginRead)
+async def get_category_origin(
+    transaction_id: uuid.UUID,
+    ctx: WorkspaceContext = Depends(current_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """What chose the transaction's category: a rule, the AI, the bank, a person."""
+    transaction = await transaction_service.get_transaction(session, transaction_id, ctx.workspace.id)
+    if not transaction:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
+    return await transaction_service.get_category_origin(session, transaction)
 
 
 @router.get("/{transaction_id}", response_model=TransactionRead)

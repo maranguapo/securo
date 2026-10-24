@@ -2042,6 +2042,7 @@ async def test_sync_keeps_provider_category_while_normalizing_description(
         )
     ).scalar_one()
     assert transaction.category_id == category.id
+    assert (transaction.category_source, transaction.category_rule_id) == ("provider", None)
     assert transaction.description == "iFood"
     assert transaction.original_description == "|fd*f|ood Club"
     assert transaction.description_is_rule_managed is True
@@ -2102,6 +2103,7 @@ async def test_sync_rule_category_wins_over_provider_category(
         )
     ).scalar_one()
     assert transaction.category_id == consorcio_category.id
+    assert transaction.category_source == "rule" and transaction.category_rule_id is not None
 
 
 @pytest.mark.asyncio

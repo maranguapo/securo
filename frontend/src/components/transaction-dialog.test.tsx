@@ -2,9 +2,9 @@ import { screen } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 
 import { TransactionDialog } from '@/components/transaction-dialog'
-import { currencies, groups, payees } from '@/lib/api'
+import { currencies, groups, payees, transactions as transactionsApi } from '@/lib/api'
 import { renderWithProviders, t } from '@/test/utils'
-import type { RecurringTransaction } from '@/types'
+import type { RecurringTransaction, Transaction } from '@/types'
 
 vi.mock('@/contexts/auth-context', () => ({
   useAuth: () => ({ user: { preferences: { currency_display: 'USD' } } }),
@@ -71,3 +71,79 @@ it.each(['America/Los_Angeles', 'Pacific/Kiritimati'])(
     }
   },
 )
+
+const savedTransaction = (over: Partial<Transaction> = {}): Transaction => ({
+  id: 'tx-1',
+  user_id: 'u1',
+  account_id: 'acc-1',
+  category_id: 'cat-1',
+  category: null,
+  external_id: null,
+  description: 'NETFLIX',
+  original_description: null,
+  amount: 39.9,
+  currency: 'USD',
+  date: '2026-10-01',
+  type: 'debit',
+  source: 'sync',
+  status: 'posted',
+  payee: null,
+  payee_id: null,
+  payee_name: null,
+  notes: null,
+  transfer_pair_id: null,
+  amount_primary: null,
+  fx_rate_used: null,
+  fx_fallback: false,
+  installment_number: null,
+  total_installments: null,
+  installment_total_amount: null,
+  installment_purchase_date: null,
+  installment_series_id: null,
+  bill_id: null,
+  effective_bill_date: null,
+  is_ignored: false,
+  splits: [],
+  ...over,
+})
+
+const openDetail = (transaction: Transaction) => {
+  vi.spyOn(currencies, 'list').mockResolvedValue([])
+  vi.spyOn(payees, 'list').mockResolvedValue([])
+  vi.spyOn(groups, 'list').mockResolvedValue([])
+  renderWithProviders(
+    <TransactionDialog
+      open
+      onClose={vi.fn()}
+      transaction={transaction}
+      categories={[]}
+      categoryGroups={[]}
+      accounts={[{ id: 'acc-1', name: 'Checking' }]}
+      onSave={vi.fn()}
+      loading={false}
+      error={null}
+    />,
+  )
+}
+
+it('tells which rule chose the saved category', async () => {
+  vi.spyOn(transactionsApi, 'categoryOrigin').mockResolvedValue({
+    source: 'rule',
+    rule: { id: 'r1', name: 'Streaming' },
+    rule_removed: false,
+    ai: null,
+  })
+
+  openDetail(savedTransaction())
+
+  expect(await screen.findByText('Set by rule “Streaming”')).toBeInTheDocument()
+})
+
+it('does not ask where a category came from when there is none', async () => {
+  const origin = vi.spyOn(transactionsApi, 'categoryOrigin')
+
+  openDetail(savedTransaction({ category_id: null }))
+
+  await screen.findByDisplayValue('NETFLIX')
+  expect(origin).not.toHaveBeenCalled()
+})

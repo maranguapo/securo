@@ -8,6 +8,7 @@ import type {
   PasskeyOptionsResponse,
   AppSetting,
   Category,
+  CategoryOrigin,
   CategoryRuleUsage,
   CategoryUsage,
   CategoryGroup,
@@ -775,6 +776,10 @@ export const transactions = {
   },
   transferPair: async (transactionId: string): Promise<Transaction | null> => {
     const { data } = await api.get(`/transactions/${transactionId}/transfer-pair`)
+    return data
+  },
+  categoryOrigin: async (transactionId: string): Promise<CategoryOrigin> => {
+    const { data } = await api.get(`/transactions/${transactionId}/category-origin`)
     return data
   },
   unlinkTransfer: async (pairId: string): Promise<void> => {

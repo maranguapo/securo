@@ -1374,7 +1374,15 @@
     "invoiceBadgeTooltip": "Tato transakce vyrovnává fakturu. Otevřete ji.",
     "suggestionBadge": "Otázka",
     "suggestionBadgeTooltip": "Platba může uhradit tuto fakturu. Otevřete frontu a odpovězte.",
-    "clearGroupFilter": "Zrušit filtr skupiny"
+    "clearGroupFilter": "Zrušit filtr skupiny",
+    "categoryOrigin": {
+      "rule": "Nastaveno pravidlem „{{name}}“",
+      "ruleRemoved": "Nastaveno pravidlem, které bylo později smazáno",
+      "ai": "Nastaveno AI (jistota {{confidence}} %)",
+      "user": "Vybráno vámi",
+      "provider": "Přišlo s bankovní transakcí",
+      "recurring": "Zkopírováno z opakující se transakce"
+    }
   },
   "accounts": {
     "title": "Účty",

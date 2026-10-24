@@ -22,6 +22,7 @@ from app.models.category_group import CategoryGroup
 from app.models.rule import Rule
 from app.models.transaction import Transaction
 from app.schemas.rule import RuleAction, RuleCondition, RuleCreate
+from app.services.category_origin import set_category
 from app.services import (
     ai_categorization_service,
     digest_service,
@@ -357,11 +358,11 @@ async def undo_many(
             continue
 
         previous = tx.category_id
-        tx.category_id = None
+        set_category(tx, None, None)
         parcels = await installment_groups.siblings(session, tx)
         for parcel in parcels:
             if parcel.category_id == previous:
-                parcel.category_id = None
+                set_category(parcel, None, None)
         row.status = "low_confidence"
         row.reviewed_by_user_id = None
         row.reviewed_at = None
@@ -467,7 +468,7 @@ async def rule_from_item(
     ).scalars()
     applied = 0
     for other in matching:
-        other.category_id = category.id
+        set_category(other, category.id, "rule", rule.id)
         applied += 1
 
     await digest_service.choose(session, workspace_id, ai_id, category.id, user_id, commit=False)
