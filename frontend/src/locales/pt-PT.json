@@ -2160,7 +2160,72 @@
     "range30d": "30D",
     "customRange": "Período personalizado",
     "pickCustomRange": "Escolha uma data inicial e final",
-    "loadError": "Falha ao carregar o relatório"
+    "loadError": "Falha ao carregar o relatório",
+    "categoriesTab": "Categorias",
+    "budgetTab": "Orçado × realizado",
+    "annualTab": "Resumo anual",
+    "taxTab": "Resumo fiscal",
+    "filters": {
+      "title": "Filtros",
+      "exclude": "Excluir estas",
+      "kind": "Tipo",
+      "kindAll": "Todos os tipos",
+      "kindRecurring": "Só recorrentes",
+      "kindInstallment": "Só em prestações",
+      "kindOneOff": "Só avulsas",
+      "minAmount": "Valor mínimo",
+      "maxAmount": "Valor máximo",
+      "clear": "Limpar filtros"
+    },
+    "export": {
+      "label": "Exportar",
+      "csv": "Descarregar CSV",
+      "pdf": "Descarregar PDF",
+      "extract": "Extrato de transações (CSV)",
+      "failed": "Não foi possível exportar o relatório"
+    },
+    "period": {
+      "thisMonth": "Este mês",
+      "lastMonth": "Mês passado",
+      "last3Months": "3 meses",
+      "ytd": "No ano",
+      "lastYear": "Ano passado"
+    },
+    "cat": {
+      "expenses": "Despesas",
+      "income": "Receitas",
+      "vsPrevious": "contra {{amount}} no período anterior",
+      "shareLine": "{{share}}% do total · {{n}} transações",
+      "viewTransactions": "Ver transações",
+      "uncategorized": "Sem categoria",
+      "new": "novo",
+      "count": "{{n}} transações"
+    },
+    "bud": {
+      "budgeted": "Orçado",
+      "spent": "Gasto",
+      "remaining": "Sobra",
+      "over": "Acima do orçamento",
+      "month": "Mês",
+      "empty": "Sem orçamentos nem gastos neste ano"
+    },
+    "ann": {
+      "income": "Receitas",
+      "expenses": "Despesas",
+      "net": "Saldo",
+      "category": "Categoria",
+      "total": "Total"
+    },
+    "tax": {
+      "income": "Rendimentos",
+      "expenses": "Despesas",
+      "noPayee": "(sem beneficiário)",
+      "hint": "Use o filtro de categorias para manter só o que declara, como saúde e educação. Descarregue o extrato para o seu contabilista."
+    },
+    "cmp": {
+      "vsPrevious": "contra o período anterior",
+      "average": "média de {{amount}} por período"
+    }
   },
   "payees": {
     "noPayeeFound": "Nenhuma entidade encontrada.",

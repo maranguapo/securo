@@ -2157,7 +2157,72 @@
     "range30d": "30T",
     "customRange": "Benutzerdefinierter Zeitraum",
     "pickCustomRange": "Start- und Enddatum wählen",
-    "loadError": "Bericht konnte nicht geladen werden"
+    "loadError": "Bericht konnte nicht geladen werden",
+    "categoriesTab": "Categories",
+    "budgetTab": "Budget vs actual",
+    "annualTab": "Annual summary",
+    "taxTab": "Tax summary",
+    "filters": {
+      "title": "Filters",
+      "exclude": "Exclude these",
+      "kind": "Kind",
+      "kindAll": "All kinds",
+      "kindRecurring": "Recurring only",
+      "kindInstallment": "Installments only",
+      "kindOneOff": "One-off only",
+      "minAmount": "Min amount",
+      "maxAmount": "Max amount",
+      "clear": "Clear filters"
+    },
+    "export": {
+      "label": "Export",
+      "csv": "Download CSV",
+      "pdf": "Download PDF",
+      "extract": "Transaction extract (CSV)",
+      "failed": "Could not export the report"
+    },
+    "period": {
+      "thisMonth": "This month",
+      "lastMonth": "Last month",
+      "last3Months": "3 months",
+      "ytd": "Year to date",
+      "lastYear": "Last year"
+    },
+    "cat": {
+      "expenses": "Expenses",
+      "income": "Income",
+      "vsPrevious": "vs {{amount}} in the previous period",
+      "shareLine": "{{share}}% of the total · {{n}} transactions",
+      "viewTransactions": "View transactions",
+      "uncategorized": "Uncategorized",
+      "new": "new",
+      "count": "{{n}} transactions"
+    },
+    "bud": {
+      "budgeted": "Budgeted",
+      "spent": "Spent",
+      "remaining": "Remaining",
+      "over": "Over budget",
+      "month": "Month",
+      "empty": "No budgets or spending for this year"
+    },
+    "ann": {
+      "income": "Income",
+      "expenses": "Expenses",
+      "net": "Net",
+      "category": "Category",
+      "total": "Total"
+    },
+    "tax": {
+      "income": "Income",
+      "expenses": "Expenses",
+      "noPayee": "(no payee)",
+      "hint": "Use the category filter to keep only what you declare, such as health and education. Download the extract for your accountant."
+    },
+    "cmp": {
+      "vsPrevious": "vs previous period",
+      "average": "avg {{amount}} per period"
+    }
   },
   "payees": {
     "noPayeeFound": "Kein Zahlungsempfänger gefunden.",

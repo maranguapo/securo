@@ -27,6 +27,10 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { DateRangePicker } from '@/components/ui/date-range-picker'
 import { PageHeader } from '@/components/page-header'
 import { CashflowSankey } from '@/components/reports/CashflowSankey'
+import { ExtraReports, EXTRA_REPORT_TABS, type ExtraReportTab } from '@/components/reports/ExtraReports'
+import { ReportFiltersBar } from '@/components/reports/ReportFiltersBar'
+import { ExportMenu } from '@/components/reports/ExportMenu'
+import { reportFilterParams, useReportFilters } from '@/lib/report-filters'
 import { usePrivacyMode } from '@/hooks/use-privacy-mode'
 import { useAuth } from '@/contexts/auth-context'
 import { useCollectionFilter } from '@/contexts/collection-filter-context'
@@ -175,6 +179,18 @@ const REPORT_TABS: ReportTab[] = [
     rangeOptions: MONEY_MAP_RANGE_OPTIONS, intervalOptions: HISTORICAL_INTERVAL_OPTIONS,
     supportsCustomRange: true, fallbackRangeKey: '3m', fallbackInterval: 'monthly',
   },
+  // The tabs below pick their own window (a period or a year) inside the view,
+  // so the range and interval presets above are unused for them.
+  ...EXTRA_REPORT_TABS.map((key): ReportTab => ({
+    key,
+    labelKey: `reports.${key}Tab`,
+    enabled: true,
+    rangeOptions: HISTORICAL_RANGE_OPTIONS,
+    intervalOptions: HISTORICAL_INTERVAL_OPTIONS,
+    supportsCustomRange: false,
+    fallbackRangeKey: '1y',
+    fallbackInterval: 'monthly',
+  })),
 ]
 
 /** The range last used on `tab`, if it is still one the tab offers. */
@@ -241,6 +257,12 @@ export default function ReportsPage() {
   const currentTab = REPORT_TABS.find((tab) => tab.key === activeTab) ?? REPORT_TABS[0]
 
   const isCashFlow = activeTab === 'cash_flow'
+  const isExtraTab = (EXTRA_REPORT_TABS as readonly string[]).includes(activeTab)
+  // Category/payee/kind/amount filters apply where the report is built from
+  // transactions. Net worth and cash flow are balances, so they stay out.
+  const [reportFilters, setReportFilters, clearReportFilters] = useReportFilters()
+  const filtersApply = activeTab === 'income_expenses' || activeTab === 'money_map'
+  const activeFilterParams = filtersApply ? reportFilterParams(reportFilters) : {}
   // The Money Map (Sankey) tab is driven by the same income/expenses
   // composition, aggregated over the selected historical range.
   const isMoneyMap = activeTab === 'money_map'
@@ -304,15 +326,15 @@ export default function ReportsPage() {
   }
 
   const { data, isLoading, isError, error, refetch } = useQuery<ReportResponse>({
-    queryKey: ['reports', activeTab, rangeKey, months, period ?? null, days ?? null, interval, isCashFlow ? cashFlowBaseline : false, activeAccountIds, activeWalletIds, apiStart ?? null, apiEnd ?? null],
+    queryKey: ['reports', activeTab, rangeKey, months, period ?? null, days ?? null, interval, isCashFlow ? cashFlowBaseline : false, activeAccountIds, activeWalletIds, apiStart ?? null, apiEnd ?? null, activeFilterParams],
     queryFn: () =>
       isCashFlow
         ? reports.cashFlow(months, interval, cashFlowBaseline, acctIds)
         : activeTab === 'income_expenses' || isMoneyMap
-          ? reports.incomeExpenses(months, interval, acctIds, period, days, apiStart, apiEnd)
+          ? reports.incomeExpenses(months, interval, acctIds, period, days, apiStart, apiEnd, activeFilterParams)
           : reports.netWorth(months, interval, acctIds, walletIds, period, apiStart, apiEnd),
     // Only request a custom report with both committed endpoints.
-    enabled: currentTab.enabled && !(noAccounts && activeTab !== 'net_worth') && (!isCustomRange || hasCustomRange),
+    enabled: currentTab.enabled && !isExtraTab && !(noAccounts && activeTab !== 'net_worth') && (!isCustomRange || hasCustomRange),
   })
 
   const summary = data?.summary
@@ -593,7 +615,7 @@ export default function ReportsPage() {
         section={t('reports.section')}
         title={t(currentTab.labelKey)}
         action={
-          <div className="flex items-center gap-2">
+          <div className={`flex items-center gap-2 ${isExtraTab ? 'hidden' : ''}`}>
             {isCashFlow && (
               <div
                 className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
@@ -712,6 +734,26 @@ export default function ReportsPage() {
         ))}
       </div>
 
+      {isExtraTab && <ExtraReports tab={activeTab as ExtraReportTab} />}
+
+      {!isExtraTab && (
+      <>
+      {filtersApply && (
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <ReportFiltersBar value={reportFilters} onChange={setReportFilters} onClear={clearReportFilters} />
+          <ExportMenu
+            report="income-expenses"
+            withExtract
+            params={{
+              months, interval, period, days,
+              ...(apiStart && apiEnd ? { start_date: apiStart, end_date: apiEnd } : {}),
+              ...(acctIds ? { account_ids: acctIds } : {}),
+              ...activeFilterParams,
+            }}
+          />
+        </div>
+      )}
+
       {isError && (
         <div className="flex items-center justify-between gap-3 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 rounded-lg px-4 py-2.5 mb-5">
           <div className="flex items-center gap-2.5 min-w-0">
@@ -780,6 +822,25 @@ export default function ReportsPage() {
                     <p className="text-lg font-bold tabular-nums text-foreground">
                       {mask(formatCurrency(b.value, userCurrency, locale))}
                     </p>
+                    {activeTab === 'income_expenses' && data?.comparison && (b.key === 'income' || b.key === 'expenses') && (() => {
+                      const cmp = data.comparison
+                      const pct = b.key === 'income' ? cmp.income_change_pct : cmp.expenses_change_pct
+                      const avg = b.key === 'income' ? cmp.average_income : cmp.average_expenses
+                      // More income is good, more spending is not.
+                      const good = b.key === 'income' ? (pct ?? 0) >= 0 : (pct ?? 0) <= 0
+                      return (
+                        <div className="mt-0.5 space-y-0.5">
+                          {pct !== null && (
+                            <p className={`text-[11px] font-semibold tabular-nums ${Math.abs(pct) < 0.5 ? 'text-muted-foreground' : good ? 'text-emerald-600 dark:text-emerald-500' : 'text-rose-600 dark:text-rose-400'}`}>
+                              {pct > 0 ? '+' : ''}{pct.toFixed(1)}% {t('reports.cmp.vsPrevious')}
+                            </p>
+                          )}
+                          <p className="text-[11px] text-muted-foreground tabular-nums">
+                            {t('reports.cmp.average', { amount: mask(formatCurrency(avg, userCurrency, locale)) })}
+                          </p>
+                        </div>
+                      )
+                    })()}
                   </div>
                 ))}
                 {/* Cash flow only: the lowest point of the projection. It keeps
@@ -1054,6 +1115,13 @@ export default function ReportsPage() {
                 <ReferenceLine y={0} stroke="var(--border)" strokeDasharray="3 3" />
                   <Bar dataKey="income" fill="#10B981" radius={[4, 4, 0, 0]} maxBarSize={20} />
                   <Bar dataKey="expenses" fill="#F43F5E" radius={[4, 4, 0, 0]} maxBarSize={20} />
+                  {/* The period's own average, so months above or below it stand out. */}
+                  {data?.comparison && (
+                    <>
+                      <ReferenceLine y={data.comparison.average_income} stroke="#10B981" strokeDasharray="4 4" strokeOpacity={0.6} />
+                      <ReferenceLine y={data.comparison.average_expenses} stroke="#F43F5E" strokeDasharray="4 4" strokeOpacity={0.6} />
+                    </>
+                  )}
                   <Bar dataKey="projectedIncome" fill="#34D399" radius={[4, 4, 0, 0]} maxBarSize={20} fillOpacity={0.65} />
                   <Bar dataKey="projectedExpenses" fill="#FB7185" radius={[4, 4, 0, 0]} maxBarSize={20} fillOpacity={0.65} />
                 <Line
@@ -1663,6 +1731,8 @@ export default function ReportsPage() {
           )}
         </div>
       </div>
+      </>
+      )}
       </>
       )}
       </>

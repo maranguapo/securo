@@ -2160,7 +2160,72 @@
     "range30d": "30D",
     "customRange": "Rango personalizado",
     "pickCustomRange": "Elige una fecha de inicio y fin",
-    "loadError": "No se pudo cargar el informe"
+    "loadError": "No se pudo cargar el informe",
+    "categoriesTab": "Categorías",
+    "budgetTab": "Presupuesto vs real",
+    "annualTab": "Resumen anual",
+    "taxTab": "Resumen fiscal",
+    "filters": {
+      "title": "Filtros",
+      "exclude": "Excluir estas",
+      "kind": "Tipo",
+      "kindAll": "Todos los tipos",
+      "kindRecurring": "Solo recurrentes",
+      "kindInstallment": "Solo en cuotas",
+      "kindOneOff": "Solo únicas",
+      "minAmount": "Importe mínimo",
+      "maxAmount": "Importe máximo",
+      "clear": "Quitar filtros"
+    },
+    "export": {
+      "label": "Exportar",
+      "csv": "Descargar CSV",
+      "pdf": "Descargar PDF",
+      "extract": "Extracto de transacciones (CSV)",
+      "failed": "No se pudo exportar el informe"
+    },
+    "period": {
+      "thisMonth": "Este mes",
+      "lastMonth": "Mes pasado",
+      "last3Months": "3 meses",
+      "ytd": "En el año",
+      "lastYear": "Año pasado"
+    },
+    "cat": {
+      "expenses": "Gastos",
+      "income": "Ingresos",
+      "vsPrevious": "frente a {{amount}} del periodo anterior",
+      "shareLine": "{{share}}% del total · {{n}} transacciones",
+      "viewTransactions": "Ver transacciones",
+      "uncategorized": "Sin categoría",
+      "new": "nuevo",
+      "count": "{{n}} transacciones"
+    },
+    "bud": {
+      "budgeted": "Presupuestado",
+      "spent": "Gastado",
+      "remaining": "Resta",
+      "over": "Sobre el presupuesto",
+      "month": "Mes",
+      "empty": "Sin presupuestos ni gastos este año"
+    },
+    "ann": {
+      "income": "Ingresos",
+      "expenses": "Gastos",
+      "net": "Neto",
+      "category": "Categoría",
+      "total": "Total"
+    },
+    "tax": {
+      "income": "Ingresos",
+      "expenses": "Gastos",
+      "noPayee": "(sin beneficiario)",
+      "hint": "Usa el filtro de categorías para quedarte solo con lo que declaras, como salud y educación. Descarga el extracto para tu contador."
+    },
+    "cmp": {
+      "vsPrevious": "frente al periodo anterior",
+      "average": "media de {{amount}} por periodo"
+    }
   },
   "payees": {
     "noPayeeFound": "No se encontró ningún beneficiario.",

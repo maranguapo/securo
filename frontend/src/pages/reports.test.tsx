@@ -15,9 +15,19 @@ const api = vi.hoisted(() => ({
   // negative from one that crosses later. Unresolved here, which lands on the
   // browser's own day.
   timezones: { list: vi.fn().mockResolvedValue({ timezones: [], default: null }) },
+  // The category and payee filters on the transaction-based tabs.
+  categories: { list: vi.fn().mockResolvedValue([]) },
+  categoryGroups: { list: vi.fn().mockResolvedValue([]) },
+  payees: { list: vi.fn().mockResolvedValue([]) },
 }))
 
-vi.mock('@/lib/api', () => ({ reports: api.reports, timezones: api.timezones }))
+vi.mock('@/lib/api', () => ({
+  reports: api.reports,
+  timezones: api.timezones,
+  categories: api.categories,
+  categoryGroups: api.categoryGroups,
+  payees: api.payees,
+}))
 
 vi.mock('@/hooks/use-display-locale', () => ({
   useDisplayLocale: () => 'en-US',
@@ -146,7 +156,9 @@ it.each([
   await user.click(custom)
   await user.click(screen.getByRole('button', { name: t('transactions.filtersBar.apply') }))
   const reportApi = tab === 'reports.netWorth' ? api.reports.netWorth : api.reports.incomeExpenses
-  await waitFor(() => expect(reportApi.mock.calls.at(-1)?.slice(-2)).toEqual([
+  // incomeExpenses takes the filters last, so its dates sit one place earlier.
+  const datesOf = () => (tab === 'reports.netWorth' ? reportApi.mock.calls.at(-1)?.slice(-2) : reportApi.mock.calls.at(-1)?.slice(-3, -1))
+  await waitFor(() => expect(datesOf()).toEqual([
     '2026-01-01', '2026-09-12',
   ]))
   await user.click(custom)
@@ -155,7 +167,7 @@ it.each([
   await waitFor(() => {
     expect(screen.getByRole('button', { name: t(fallback) })).toHaveClass('bg-primary')
     expect(reportApi.mock.calls.at(-1)?.[0]).toBe(months)
-    expect(reportApi.mock.calls.at(-1)?.slice(-2)).toEqual([undefined, undefined])
+    expect(datesOf()).toEqual([undefined, undefined])
   })
   expect(custom).toHaveTextContent(t('reports.customRange'))
 })
@@ -167,12 +179,12 @@ it('preserves saved custom dates across supported tabs and preset dismissal', as
   await user.click(screen.getByRole('button', { name: t('transactions.filtersBar.apply') }))
   for (const tab of ['reports.incomeExpenses', 'reports.moneyMap']) {
     await user.click(screen.getByRole('button', { name: t(tab) }))
-    await waitFor(() => expect(api.reports.incomeExpenses.mock.calls.at(-1)?.slice(-2))
+    await waitFor(() => expect(api.reports.incomeExpenses.mock.calls.at(-1)?.slice(-3, -1))
       .toEqual(['2026-01-01', '2026-09-12']))
     expect(custom).toHaveClass('bg-primary')
   }
   await user.click(screen.getByRole('button', { name: t('reports.range6m') }))
-  await waitFor(() => expect(api.reports.incomeExpenses.mock.calls.at(-1)?.slice(-2))
+  await waitFor(() => expect(api.reports.incomeExpenses.mock.calls.at(-1)?.slice(-3, -1))
     .toEqual([undefined, undefined]))
   const count = api.reports.incomeExpenses.mock.calls.length
   await user.click(custom)
@@ -182,7 +194,7 @@ it('preserves saved custom dates across supported tabs and preset dismissal', as
   expect(screen.getByRole('button', { name: t('reports.range6m') })).toHaveClass('bg-primary')
   await user.click(custom)
   await user.click(screen.getByRole('button', { name: t('transactions.filtersBar.apply') }))
-  await waitFor(() => expect(api.reports.incomeExpenses.mock.calls.at(-1)?.slice(-2))
+  await waitFor(() => expect(api.reports.incomeExpenses.mock.calls.at(-1)?.slice(-3, -1))
     .toEqual(['2026-01-01', '2026-09-12']))
   await user.click(screen.getByRole('button', { name: t('reports.cashFlow') }))
   await waitFor(() => expect(api.reports.cashFlow).toHaveBeenCalled())
