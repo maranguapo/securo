@@ -105,6 +105,10 @@ import type {
   BalanceHistory,
   PaginatedTransactions,
   ReportResponse,
+  CategoryReport,
+  BudgetReport,
+  AnnualSummary,
+  TaxSummary,
   Group,
   GroupKind,
   GroupMember,
@@ -1685,6 +1689,7 @@ export const reports = {
     days?: number,
     startDate?: string,
     endDate?: string,
+    filters: Record<string, unknown> = {},
   ): Promise<ReportResponse> => {
     const extra = acctIdsParam(accountIds)
     const { data } = await api.get('/reports/income-expenses', {
@@ -1692,10 +1697,54 @@ export const reports = {
         months, interval, period, days,
         ...(startDate && endDate ? { start_date: startDate, end_date: endDate } : {}),
         ...(extra.params ?? {}),
+        ...filters,
       },
-      ...(extra.paramsSerializer ? { paramsSerializer: extra.paramsSerializer } : {}),
+      paramsSerializer: { indexes: null as null },
     })
     return data
+  },
+  categories: async (
+    startDate: string, endDate: string, kind: 'expenses' | 'income',
+    accountIds?: string[], filters: Record<string, unknown> = {},
+  ): Promise<CategoryReport> => {
+    const extra = acctIdsParam(accountIds)
+    const { data } = await api.get('/reports/categories', {
+      params: { start_date: startDate, end_date: endDate, kind, ...(extra.params ?? {}), ...filters },
+      paramsSerializer: { indexes: null as null },
+    })
+    return data
+  },
+  budgetVsActual: async (year: number): Promise<BudgetReport> => {
+    const { data } = await api.get('/reports/budget-vs-actual', { params: { year } })
+    return data
+  },
+  annualSummary: async (year: number, accountIds?: string[], filters: Record<string, unknown> = {}): Promise<AnnualSummary> => {
+    const extra = acctIdsParam(accountIds)
+    const { data } = await api.get('/reports/annual-summary', {
+      params: { year, ...(extra.params ?? {}), ...filters },
+      paramsSerializer: { indexes: null as null },
+    })
+    return data
+  },
+  taxSummary: async (startDate: string, endDate: string, accountIds?: string[], filters: Record<string, unknown> = {}): Promise<TaxSummary> => {
+    const extra = acctIdsParam(accountIds)
+    const { data } = await api.get('/reports/tax-summary', {
+      params: { start_date: startDate, end_date: endDate, ...(extra.params ?? {}), ...filters },
+      paramsSerializer: { indexes: null as null },
+    })
+    return data
+  },
+  // Downloads a report as a file. `params` carries the same window, account
+  // and filter params the screen used, so the file matches what is shown.
+  export: async (report: string, format: 'csv' | 'pdf', params: Record<string, unknown>): Promise<{ blob: Blob; filename: string }> => {
+    const response = await api.get('/reports/export', {
+      params: { report, format, ...params },
+      paramsSerializer: { indexes: null as null },
+      responseType: 'blob',
+    })
+    const disposition = String(response.headers['content-disposition'] ?? '')
+    const filename = /filename="?([^";]+)"?/.exec(disposition)?.[1] ?? `securo-${report}.${format}`
+    return { blob: response.data as Blob, filename }
   },
   cashFlow: async (months = 6, interval = 'daily', baseline = false, accountIds?: string[]): Promise<ReportResponse> => {
     const extra = acctIdsParam(accountIds)

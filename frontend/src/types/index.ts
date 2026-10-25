@@ -1102,6 +1102,7 @@ export interface ReportResponse {
   meta: ReportMeta
   composition: ReportCompositionItem[]
   category_trend: CategoryTrendItem[]
+  comparison?: ReportComparison | null
 }
 
 // --- Invoices -------------------------------------------------------------
@@ -2058,4 +2059,98 @@ export interface HealthMetrics {
   net_worth_change_12m_pct: number | null
   card_debt_to_income: number | null
   ai_categorized_pct: number | null
+}
+
+export interface ReportComparison {
+  previous_start: string
+  previous_end: string
+  previous_income: number
+  previous_expenses: number
+  income_change_pct: number | null
+  expenses_change_pct: number | null
+  average_income: number
+  average_expenses: number
+}
+
+export interface CategoryReportItem {
+  category_id: string | null
+  name: string
+  color: string
+  icon: string
+  group_name: string | null
+  total: number
+  share_pct: number
+  count: number
+  previous_total: number
+  delta: number
+  delta_pct: number | null
+  series: number[]
+}
+
+export interface CategoryReport {
+  primary_currency: string
+  kind: 'expenses' | 'income'
+  start: string
+  end: string
+  previous_start: string
+  previous_end: string
+  months: string[]
+  total: number
+  previous_total: number
+  items: CategoryReportItem[]
+}
+
+export interface BudgetReportRow {
+  category_id: string
+  name: string
+  color: string
+  icon: string
+  group_name: string | null
+  budget: (number | null)[]
+  actual: number[]
+  budget_total: number
+  actual_total: number
+}
+
+export interface BudgetReport {
+  primary_currency: string
+  year: number
+  through_month: number
+  rows: BudgetReportRow[]
+}
+
+export interface AnnualRow {
+  category_id: string | null
+  name: string
+  color: string
+  kind: 'income' | 'expenses'
+  months: number[]
+  total: number
+}
+
+export interface AnnualSummary {
+  primary_currency: string
+  year: number
+  rows: AnnualRow[]
+  income_months: number[]
+  expense_months: number[]
+  net_months: number[]
+}
+
+export interface TaxCategory {
+  kind: 'income' | 'expenses'
+  category_id: string | null
+  name: string
+  total: number
+  count: number
+  payees: { name: string | null; total: number; count: number }[]
+}
+
+export interface TaxSummary {
+  primary_currency: string
+  start: string
+  end: string
+  income_total: number
+  expense_total: number
+  categories: TaxCategory[]
 }
