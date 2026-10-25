@@ -15,6 +15,7 @@ from app.models.asset_value import AssetValue
 from app.models.transaction import Transaction
 from app.models.category import Category
 from app.models.user import User
+from app.services.report_filters import ReportFilters
 from app.services._query_filters import (
     counts_as_pnl,
     counts_as_user_pnl,
@@ -27,6 +28,7 @@ from app.services.fx_rate_service import convert
 from app.schemas.report import (
     CategoryTrendItem,
     ReportBreakdown,
+    ReportComparison,
     ReportCompositionItem,
     ReportDataPoint,
     ReportMeta,
@@ -434,10 +436,16 @@ async def get_income_expenses_report(
     financial_year_start_month: int = 1,
     start_date: date | None = None,
     end_date: date | None = None,
+    filters: Optional[ReportFilters] = None,
+    include_comparison: bool = True,
 ) -> ReportResponse:
     """Build income/expenses; explicit custom windows include actuals only."""
-    filtered = account_ids is not None
-    acct_filter = [Transaction.account_id.in_(account_ids)] if filtered else []
+    account_filtered = account_ids is not None
+    filters = filters or ReportFilters()
+    # Any extra filter narrows the report to raw rows, like a collection does:
+    # split redistribution and invoice claims have no category or payee to match.
+    filtered = account_filtered or filters.active
+    acct_filter = ([Transaction.account_id.in_(account_ids)] if account_filtered else []) + filters.conditions()
     real_today = app_today()
     axis_end = end_date or real_today
     start = _report_start_date(
@@ -637,6 +645,7 @@ async def get_income_expenses_report(
         projections = await _get_recurring_projections(
             session, workspace_id, max(m_start, start), m_end, account_ids
         )
+        projections = [p for p in projections if filters.allows_projection(p)]
         for proj in projections:
             # Convert to primary currency
             converted, _ = await fx_convert(
@@ -654,7 +663,7 @@ async def get_income_expenses_report(
             range_date_col=report_date,
         )
         for tx in forecast_transactions:
-            if not _counts_as_user_pnl_row(tx):
+            if not _counts_as_user_pnl_row(tx) or not filters.allows_transaction(tx):
                 continue
             if tx.amount_primary is not None:
                 amount = abs(float(tx.amount_primary))
@@ -682,7 +691,7 @@ async def get_income_expenses_report(
         # `is None`, not falsy: a collection holding only wallets narrows
         # the report to an empty set of bank accounts, and an empty list
         # means filtered to nothing rather than not filtered at all.
-        if account_ids is None:
+        if account_ids is None and not filters.active:
             for claim in await invoice_forecast_service.claims_in_range(
                 session, workspace_id, max(m_start, start), m_end
             ):
@@ -986,6 +995,7 @@ async def get_income_expenses_report(
     while include_forecasts and cursor2 <= real_today:
         m_start, m_end = _month_range(cursor2)
         projections = await _get_recurring_projections(session, workspace_id, m_start, m_end, account_ids)
+        projections = [p for p in projections if filters.allows_projection(p)]
         period_label = _format_date_label(cursor2, interval)
         for proj in projections:
             cat_id_str = str(proj["category_id"]) if proj["category_id"] else "uncategorized"
@@ -1040,7 +1050,7 @@ async def get_income_expenses_report(
             range_date_col=report_date,
         )
         for tx in forecast_transactions:
-            if not _counts_as_user_pnl_row(tx):
+            if not _counts_as_user_pnl_row(tx) or not filters.allows_transaction(tx):
                 continue
             cat_id_str = str(tx.category_id) if tx.category_id else "uncategorized"
             group = "income" if tx.type == "credit" else "expenses"
@@ -1176,9 +1186,39 @@ async def get_income_expenses_report(
                     group=group,
                 ))
 
+    comparison = None
+    if include_comparison:
+        # The window of the same length that ends the day before this one
+        # starts, read through this very function so both sides share every
+        # rule and filter. Actuals only: a past window has no forecast.
+        length = (axis_end - start).days + 1
+        prev_end = start - timedelta(days=1)
+        prev_start = prev_end - timedelta(days=length - 1)
+        previous = await get_income_expenses_report(
+            session, workspace_id, user_id, months, interval, primary_currency,
+            account_ids=account_ids, financial_year_start_month=financial_year_start_month,
+            start_date=prev_start, end_date=prev_end, filters=filters, include_comparison=False,
+        )
+        prev_totals = {b.key: b.value for b in previous.summary.breakdowns}
+        prev_income, prev_expenses = prev_totals.get("income", 0.0), prev_totals.get("expenses", 0.0)
+
+        def _change(now: float, before: float) -> float | None:
+            return round((now - before) / before * 100, 2) if before else None
+
+        intervals = max(len(trend), 1)
+        comparison = ReportComparison(
+            previous_start=prev_start.isoformat(), previous_end=prev_end.isoformat(),
+            previous_income=prev_income, previous_expenses=prev_expenses,
+            income_change_pct=_change(total_income, prev_income),
+            expenses_change_pct=_change(total_expenses, prev_expenses),
+            average_income=round(total_income / intervals, 2),
+            average_expenses=round(total_expenses / intervals, 2),
+        )
+
     return ReportResponse(
         summary=summary, trend=trend, meta=meta,
         composition=composition, category_trend=category_trend,
+        comparison=comparison,
     )
 
 

@@ -2,13 +2,20 @@ import uuid
 from datetime import date
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_async_session
 from app.core.workspace_context import WorkspaceContext, current_workspace
-from app.schemas.report import ReportResponse
-from app.services import report_service
+from app.schemas.report import (
+    AnnualSummary,
+    BudgetReport,
+    CategoryReport,
+    ReportResponse,
+    TaxSummary,
+)
+from app.services import report_export, report_service, report_tables_service
+from app.services.report_filters import ReportFilters, report_filters
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
 
@@ -118,6 +125,7 @@ async def get_income_expenses(
     days: Optional[int] = Query(None, ge=1, le=730),
     start_date: date | None = Query(None),
     end_date: date | None = Query(None),
+    filters: ReportFilters = Depends(report_filters),
     ctx: WorkspaceContext = Depends(current_workspace),
     session: AsyncSession = Depends(get_async_session),
 ):
@@ -138,6 +146,7 @@ async def get_income_expenses(
         account_ids=account_ids, period=effective_period, days=days,
         financial_year_start_month=financial_year_start_month,
         start_date=custom_start, end_date=custom_end,
+        filters=await filters.resolve(session, ctx.workspace.id),
     )
 
 
@@ -154,3 +163,125 @@ async def get_cash_flow(
         session, ctx.workspace.id, ctx.user_id, months, interval, ctx.user.primary_currency,
         baseline=baseline, account_ids=account_ids,
     )
+
+
+# --- Category, budget, annual and tax reports --------------------------------
+
+@router.get("/categories", response_model=CategoryReport)
+async def get_categories_report(
+    start_date: date | None = Query(None),
+    end_date: date | None = Query(None),
+    kind: str = Query("expenses", pattern="^(expenses|income)$"),
+    account_ids: Optional[list[uuid.UUID]] = Query(None),
+    filters: ReportFilters = Depends(report_filters),
+    ctx: WorkspaceContext = Depends(current_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Ranking of categories for a window, against the window just before it."""
+    return await report_tables_service.get_category_report(
+        session, ctx.workspace.id, ctx.user_id, start_date, end_date, kind, account_ids,
+        await filters.resolve(session, ctx.workspace.id),
+    )
+
+
+@router.get("/budget-vs-actual", response_model=BudgetReport)
+async def get_budget_report(
+    year: int | None = Query(None, ge=2000, le=2100),
+    ctx: WorkspaceContext = Depends(current_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    return await report_tables_service.get_budget_report(session, ctx.workspace.id, ctx.user_id, year)
+
+
+@router.get("/annual-summary", response_model=AnnualSummary)
+async def get_annual_summary(
+    year: int | None = Query(None, ge=2000, le=2100),
+    account_ids: Optional[list[uuid.UUID]] = Query(None),
+    filters: ReportFilters = Depends(report_filters),
+    ctx: WorkspaceContext = Depends(current_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    return await report_tables_service.get_annual_summary(
+        session, ctx.workspace.id, ctx.user_id, year, account_ids,
+        await filters.resolve(session, ctx.workspace.id),
+    )
+
+
+@router.get("/tax-summary", response_model=TaxSummary)
+async def get_tax_summary(
+    start_date: date | None = Query(None),
+    end_date: date | None = Query(None),
+    account_ids: Optional[list[uuid.UUID]] = Query(None),
+    filters: ReportFilters = Depends(report_filters),
+    ctx: WorkspaceContext = Depends(current_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Income and expenses by category, then payee. Defaults to last calendar year."""
+    return await report_tables_service.get_tax_summary(
+        session, ctx.workspace.id, ctx.user_id, start_date, end_date, account_ids,
+        await filters.resolve(session, ctx.workspace.id),
+    )
+
+
+_EXPORTS = "^(income-expenses|categories|annual-summary|tax-summary|budget-vs-actual|transactions)$"
+
+
+@router.get("/export")
+async def export_report(
+    report: str = Query(..., pattern=_EXPORTS),
+    format: str = Query("csv", pattern="^(csv|pdf)$"),
+    lang: str | None = Query(None, max_length=10),
+    delimiter: str = Query(",", pattern="^[,;]$"),
+    year: int | None = Query(None, ge=2000, le=2100),
+    kind: str = Query("expenses", pattern="^(expenses|income)$"),
+    months: int = Query(12, ge=1, le=24),
+    interval: str = Query("monthly", pattern="^(daily|weekly|monthly|yearly)$"),
+    period: str | None = Query(None, pattern="^ytd$"),
+    days: Optional[int] = Query(None, ge=1, le=730),
+    start_date: date | None = Query(None),
+    end_date: date | None = Query(None),
+    account_ids: Optional[list[uuid.UUID]] = Query(None),
+    filters: ReportFilters = Depends(report_filters),
+    ctx: WorkspaceContext = Depends(current_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Download a report as CSV or PDF, with the same filters the screen applies."""
+    workspace_id, user_id = ctx.workspace.id, ctx.user_id
+    resolved = await filters.resolve(session, workspace_id)
+
+    if report == "categories":
+        table = report_export.category_table(
+            await report_tables_service.get_category_report(
+                session, workspace_id, user_id, start_date, end_date, kind, account_ids, resolved), lang)
+    elif report == "annual-summary":
+        table = report_export.annual_table(
+            await report_tables_service.get_annual_summary(
+                session, workspace_id, user_id, year, account_ids, resolved), lang)
+    elif report == "tax-summary":
+        table = report_export.tax_table(
+            await report_tables_service.get_tax_summary(
+                session, workspace_id, user_id, start_date, end_date, account_ids, resolved), lang)
+    elif report == "budget-vs-actual":
+        table = report_export.budget_table(
+            await report_tables_service.get_budget_report(session, workspace_id, user_id, year), lang)
+    elif report == "transactions":
+        table = await report_export.transactions_table(
+            session, workspace_id, user_id, start_date, end_date, lang, account_ids, resolved)
+    else:
+        fy_start = _financial_year_start_month(ctx.workspace.tax_jurisdiction)
+        custom_start, custom_end = _resolve_custom_range(start_date, end_date)
+        table = report_export.income_expenses_table(
+            await report_service.get_income_expenses_report(
+                session, workspace_id, user_id, months, interval, ctx.user.primary_currency,
+                account_ids=account_ids, period=None if custom_start else period, days=days,
+                financial_year_start_month=fy_start, start_date=custom_start, end_date=custom_end,
+                filters=resolved),
+            lang)
+
+    if format == "pdf":
+        body, media = report_export.to_pdf(table), "application/pdf"
+    else:
+        decimal = "," if delimiter == ";" else "."
+        body, media = report_export.to_csv(table, delimiter, decimal), "text/csv; charset=utf-8"
+    filename = f"securo-{report}-{date.today().isoformat()}.{format}"
+    return Response(content=body, media_type=media, headers={"Content-Disposition": f'attachment; filename="{filename}"'})

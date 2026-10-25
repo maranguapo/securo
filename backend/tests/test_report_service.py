@@ -522,7 +522,7 @@ async def test_income_expenses_api_accepts_ytd_period(client, auth_headers, monk
     async def fake_report(
         session, workspace_id, user_id, months, interval, currency,
         account_ids=None, period=None, days=None, financial_year_start_month=1,
-        start_date=None, end_date=None,
+        start_date=None, end_date=None, filters=None,
     ):
         assert months == 12
         assert interval == "monthly"
@@ -565,7 +565,7 @@ async def test_income_expenses_api_forwards_days_window(client, auth_headers, mo
     async def fake_report(
         session, workspace_id, user_id, months, interval, currency,
         account_ids=None, period=None, days=None, financial_year_start_month=1,
-        start_date=None, end_date=None,
+        start_date=None, end_date=None, filters=None,
     ):
         seen["days"] = days
         return ReportResponse(
@@ -612,7 +612,7 @@ async def test_income_expenses_api_forwards_custom_range(client, auth_headers, m
     async def fake_report(
         session, workspace_id, user_id, months, interval, currency,
         account_ids=None, period=None, days=None, financial_year_start_month=1,
-        start_date=None, end_date=None,
+        start_date=None, end_date=None, filters=None,
     ):
         seen["start"] = start_date
         seen["end"] = end_date

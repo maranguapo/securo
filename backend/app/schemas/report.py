@@ -63,3 +63,110 @@ class ReportResponse(BaseModel):
     meta: ReportMeta
     composition: list[ReportCompositionItem] = []
     category_trend: list[CategoryTrendItem] = []
+    comparison: "ReportComparison | None" = None
+
+
+# --- Phase 2/3: category, budget, annual and tax reports ---------------------
+
+class ReportComparison(BaseModel):
+    """The window just before the reported one, and the period's own average."""
+    previous_start: str
+    previous_end: str
+    previous_income: float
+    previous_expenses: float
+    income_change_pct: float | None = None
+    expenses_change_pct: float | None = None
+    average_income: float  # per interval of the reported window
+    average_expenses: float
+
+
+class CategoryReportItem(BaseModel):
+    category_id: str | None
+    name: str
+    color: str
+    icon: str
+    group_name: str | None = None
+    total: float
+    share_pct: float
+    count: int
+    previous_total: float
+    delta: float
+    delta_pct: float | None = None
+    series: list[float]  # one value per month in CategoryReport.months
+
+
+class CategoryReport(BaseModel):
+    primary_currency: str
+    kind: str  # "expenses" | "income"
+    start: str
+    end: str
+    previous_start: str
+    previous_end: str
+    months: list[str]
+    total: float
+    previous_total: float
+    items: list[CategoryReportItem]
+
+
+class BudgetReportRow(BaseModel):
+    category_id: str
+    name: str
+    color: str
+    icon: str
+    group_name: str | None = None
+    budget: list[float | None]  # 12 months
+    actual: list[float]  # 12 months
+    budget_total: float
+    actual_total: float
+
+
+class BudgetReport(BaseModel):
+    primary_currency: str
+    year: int
+    through_month: int  # last month with actuals (12 for past years)
+    rows: list[BudgetReportRow]
+
+
+class AnnualRow(BaseModel):
+    category_id: str | None
+    name: str
+    color: str
+    kind: str  # "income" | "expenses"
+    months: list[float]  # 12 values
+    total: float
+
+
+class AnnualSummary(BaseModel):
+    primary_currency: str
+    year: int
+    rows: list[AnnualRow]
+    income_months: list[float]
+    expense_months: list[float]
+    net_months: list[float]
+
+
+class TaxPayee(BaseModel):
+    name: str | None  # None: no payee recorded
+    total: float
+    count: int
+
+
+class TaxCategory(BaseModel):
+    kind: str  # "income" | "expenses"
+    category_id: str | None
+    name: str
+    total: float
+    count: int
+    payees: list[TaxPayee]
+
+
+class TaxSummary(BaseModel):
+    primary_currency: str
+    start: str
+    end: str
+    income_total: float
+    expense_total: float
+    categories: list[TaxCategory]
+
+
+ReportResponse.model_rebuild()
