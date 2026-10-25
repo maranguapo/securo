@@ -1709,7 +1709,7 @@ export const reports = {
   ): Promise<CategoryReport> => {
     const extra = acctIdsParam(accountIds)
     const { data } = await api.get('/reports/categories', {
-      params: { start_date: startDate, end_date: endDate, kind, ...(extra.params ?? {}), ...filters },
+      params: { start_date: startDate, end_date: endDate, flow: kind, ...(extra.params ?? {}), ...filters },
       paramsSerializer: { indexes: null as null },
     })
     return data
