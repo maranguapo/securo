@@ -177,7 +177,7 @@ function CategoriesReportView() {
         <ExportMenu
           report="categories"
           withExtract
-          params={{ start_date: range.from, end_date: range.to, kind, ...(acctIds ? { account_ids: acctIds } : {}), ...filterParams }}
+          params={{ start_date: range.from, end_date: range.to, flow: kind, ...(acctIds ? { account_ids: acctIds } : {}), ...filterParams }}
         />
       </div>
 

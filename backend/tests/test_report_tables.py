@@ -178,3 +178,31 @@ async def test_income_expenses_export_matches_screen_totals(client, auth_headers
     lines = res.content.decode("utf-8-sig").splitlines()
     assert lines[0] == "Period,Income,Expenses,Net"
     assert lines[-1].startswith("Total,")
+
+
+async def test_categories_flow_and_kind_filter_are_separate_params(
+    client, auth_headers, session, test_user, test_account, test_categories
+):
+    """`flow` picks expenses or income; `kind` is the recurring/installment filter."""
+    cat = test_categories[0]
+    session.add_all([
+        _tx(test_user, test_account, "PARCELA", "90.00", category_id=cat.id, installment_number=1, total_installments=6),
+        _tx(test_user, test_account, "AVULSA", "10.00", category_id=cat.id),
+        _tx(test_user, test_account, "SALARIO", "500.00", type="credit", category_id=cat.id),
+    ])
+    await session.commit()
+    window = {"start_date": date.today().replace(day=1).isoformat(), "end_date": date.today().isoformat()}
+
+    both = await client.get("/api/reports/categories", params={**window, "flow": "expenses", "kind": "installment"}, headers=auth_headers)
+    assert both.status_code == 200, both.text
+    assert both.json()["total"] == pytest.approx(90.0)
+
+    income = await client.get("/api/reports/categories", params={**window, "flow": "income"}, headers=auth_headers)
+    assert income.json()["total"] == pytest.approx(500.0)
+
+    export = await client.get(
+        "/api/reports/export",
+        params={"report": "categories", "format": "csv", "flow": "expenses", "kind": "one_off", **window},
+        headers=auth_headers,
+    )
+    assert export.status_code == 200, export.text

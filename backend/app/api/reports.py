@@ -171,7 +171,7 @@ async def get_cash_flow(
 async def get_categories_report(
     start_date: date | None = Query(None),
     end_date: date | None = Query(None),
-    kind: str = Query("expenses", pattern="^(expenses|income)$"),
+    flow: str = Query("expenses", pattern="^(expenses|income)$"),
     account_ids: Optional[list[uuid.UUID]] = Query(None),
     filters: ReportFilters = Depends(report_filters),
     ctx: WorkspaceContext = Depends(current_workspace),
@@ -179,7 +179,7 @@ async def get_categories_report(
 ):
     """Ranking of categories for a window, against the window just before it."""
     return await report_tables_service.get_category_report(
-        session, ctx.workspace.id, ctx.user_id, start_date, end_date, kind, account_ids,
+        session, ctx.workspace.id, ctx.user_id, start_date, end_date, flow, account_ids,
         await filters.resolve(session, ctx.workspace.id),
     )
 
@@ -233,7 +233,7 @@ async def export_report(
     lang: str | None = Query(None, max_length=10),
     delimiter: str = Query(",", pattern="^[,;]$"),
     year: int | None = Query(None, ge=2000, le=2100),
-    kind: str = Query("expenses", pattern="^(expenses|income)$"),
+    flow: str = Query("expenses", pattern="^(expenses|income)$"),
     months: int = Query(12, ge=1, le=24),
     interval: str = Query("monthly", pattern="^(daily|weekly|monthly|yearly)$"),
     period: str | None = Query(None, pattern="^ytd$"),
@@ -252,7 +252,7 @@ async def export_report(
     if report == "categories":
         table = report_export.category_table(
             await report_tables_service.get_category_report(
-                session, workspace_id, user_id, start_date, end_date, kind, account_ids, resolved), lang)
+                session, workspace_id, user_id, start_date, end_date, flow, account_ids, resolved), lang)
     elif report == "annual-summary":
         table = report_export.annual_table(
             await report_tables_service.get_annual_summary(
